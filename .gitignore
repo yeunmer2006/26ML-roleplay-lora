@@ -1,0 +1,6 @@
+# Claude
+.claude/
+.claude/settings.json
+.claude/tasks/
+.claude/snapshots/
+CLAUDE.md
