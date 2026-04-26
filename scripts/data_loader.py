@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
 数据加载与清洗脚本
-从 HuggingFace 加载 PIPPA-ShareGPT 数据集并进行清洗
+从 HuggingFace 加载 PIPPA 数据集并进行清洗
 """
 
 import os
 import json
-from datasets import load_dataset, train_test_split, Dataset
+from datasets import load_dataset, Dataset
+from sklearn.model_selection import train_test_split
 from pathlib import Path
 
 
 def load_and_clean_dataset(
-    dataset_name: str = "PIPPA-ShareGPT",
+    dataset_name: str = "KaraKaraWitch/PIPPA-ShareGPT-formatted",
     test_size: float = 0.1,
     max_conversation_length: int = 8000,
     seed: int = 42
@@ -181,7 +182,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="数据加载与清洗")
-    parser.add_argument("--dataset", type=str, default="PIPPA-ShareGPT",
+    parser.add_argument("--dataset", type=str, default="KaraKaraWitch/PIPPA-ShareGPT-formatted",
                         help="HuggingFace 数据集名称")
     parser.add_argument("--output_dir", type=str, default="./processed",
                         help="输出目录")

@@ -57,9 +57,9 @@ class Config:
         self.per_device_eval_batch_size = config["training"]["per_device_eval_batch_size"]
         self.gradient_accumulation_steps = config["training"]["gradient_accumulation_steps"]
         self.gradient_checkpointing = config["training"].get("gradient_checkpointing", False)
-        self.learning_rate = config["training"]["learning_rate"]
-        self.weight_decay = config["training"]["weight_decay"]
-        self.warmup_ratio = config["training"]["warmup_ratio"]
+        self.learning_rate = float(config["training"]["learning_rate"])
+        self.weight_decay = float(config["training"]["weight_decay"])
+        self.warmup_ratio = float(config["training"]["warmup_ratio"])
         self.lr_scheduler_type = config["training"]["lr_scheduler_type"]
         self.logging_steps = config["training"]["logging_steps"]
         self.save_steps = config["training"]["save_steps"]
@@ -274,10 +274,10 @@ def create_trainer(model, tokenizer, train_dataset, val_dataset, config: Config)
         logging_steps=config.logging_steps,
         save_steps=config.save_steps,
         eval_steps=config.eval_steps,
-        evaluation_strategy=config.evaluation_strategy,
+        eval_strategy=config.evaluation_strategy,
         save_total_limit=config.save_total_limit,
         fp16=config.fp16,
-        optim=config.optim,
+        optim="adamw_bnb_8bit",
         load_best_model_at_end=config.load_best_model_at_end,
         metric_for_best_model=config.metric_for_best_model,
         greater_is_better=config.greater_is_better,
