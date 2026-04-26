@@ -4,6 +4,7 @@
 
 ## 项目成员
 
+刘易函 廖绪丞 龙泓潭
 | 姓名 | 学号 | 分工 |
 |------|------|------|
 | | | |
@@ -50,7 +51,7 @@ python scripts/data_loader.py --dataset <dataset_name> --output_dir ./processed
 ### 2. 模型训练
 
 ```bash
-# 本地训练（RTX 4060 8GB 专用配置）
+# 本地训练（RTX 4060 8GB ）
 python scripts/train.py --config configs/lora_config_local.yaml
 
 # Colab 训练（T4 GPU 高配置）
@@ -117,10 +118,11 @@ project/
 
 ## 数据集
 
+> 目前暂且使用 PIPPA-ShareGPT-formatted 数据集进行训练，后续计划扩展更多角色扮演对话数据集。
+
 | 数据集 | HuggingFace ID | 规模 | 说明 |
 |--------|----------------|------|------|
-| PIPPA-ShareGPT-formatted | KaraKaraWitch/PIPPA-ShareGPT-formatted | ~16,000 条 | 推荐使用 |
-| PIPPA (旧版，需脚本) | PygmalionAI/PIPPA | ~16,000 条 | 已弃用 |
+| PIPPA-ShareGPT-formatted | KaraKaraWitch/PIPPA-ShareGPT-formatted | ~16,000 条 | 
 
 ---
 
