@@ -67,7 +67,7 @@ def load_model_and_tokenizer(base_model_name: str, adapter_path: str = None):
     base_model = AutoModelForCausalLM.from_pretrained(
         base_model_name,
         trust_remote_code=True,
-        torch_dtype=torch.float16,
+        dtype=torch.float16,
         device_map="auto",
     )
 
@@ -77,7 +77,7 @@ def load_model_and_tokenizer(base_model_name: str, adapter_path: str = None):
         model = PeftModel.from_pretrained(
             base_model,
             adapter_path,
-            torch_dtype=torch.float16,
+            dtype=torch.float16,
         )
     else:
         print("未找到 LoRA adapter，使用基座模型")

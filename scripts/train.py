@@ -123,7 +123,7 @@ def load_model_and_tokenizer(config: Config):
         model = AutoModelForCausalLM.from_pretrained(
             config.model_name,
             trust_remote_code=True,
-            torch_dtype=torch.float16,
+            dtype=torch.float16,
             device_map="auto",
         )
 
