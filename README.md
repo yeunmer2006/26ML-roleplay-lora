@@ -152,6 +152,57 @@ output/lora_roleplay/final_model/
 
 ---
 
+## Google Colab 使用指南
+
+### 1. 挂载 Google Drive
+
+建议将模型和大文件存到 Google Drive，避免 Colab 断开后丢失：
+
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+```
+
+### 2. Clone 代码
+
+```python
+!git clone -b yeunmer git@github.com:yeunmer2006/26ML-roleplay-lora.git
+%cd 26ML-roleplay-lora
+```
+
+### 3. 安装依赖
+
+```python
+!pip install -r requirements.txt
+```
+
+### 4. 开始训练
+
+```python
+!python scripts/train.py --config configs/lora_config_colab.yaml
+```
+
+### 5. 训练产物存储
+
+Colab `/content` 目录掉线会清空，模型和输出建议存到 Google Drive：
+
+```
+/content/drive/MyDrive/ML_Project/
+├── models/          # 基座模型
+├── processed/       # 清洗后数据
+└── outputs/         # 训练输出
+```
+
+修改 `configs/lora_config_colab.yaml` 中的路径配置即可。
+
+### 6. 查看代码
+
+- 文件浏览器：左侧面板 > 文件
+- 快速查看：`!cat scripts/train.py`
+- GitHub：https://github.com/yeunmer2006/26ML-roleplay-lora/tree/yeunmer
+
+---
+
 ## 常见问题
 
 ### 显存不足 (OOM)
