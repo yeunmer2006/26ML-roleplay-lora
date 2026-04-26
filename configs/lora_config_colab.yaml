@@ -44,7 +44,7 @@ training:
   greater_is_better: false
 
 data:
-  dataset_name: "PIPPA-ShareGPT"
+  dataset_name: "KaraKaraWitch/PIPPA-ShareGPT-formatted"
   test_size: 0.1
   seed: 42
 
