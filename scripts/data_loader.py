@@ -169,7 +169,7 @@ def tokenize_function(examples, tokenizer, max_length: int = 2048):
         examples["text"],
         truncation=True,
         max_length=max_length,
-        padding=False,
+        padding='max_length',
     )
 
     # 设置 labels 用于语言模型训练
