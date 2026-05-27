@@ -64,6 +64,34 @@ python scripts/inference.py --adapter output/lora_roleplay/final_model
 
 # 指定角色卡
 python scripts/inference.py --adapter output/lora_roleplay/final_model --character configs/character_cards/harry_potter.json
+
+# 批量推理测试
+python scripts/inference.py --adapter output/lora_roleplay/final_model --batch
+```
+
+### 4. 模型评估
+
+```bash
+# 评估 LoRA 模型在验证集上的表现
+python scripts/eval.py --adapter output/lora_roleplay/final_model --dataset ./processed
+
+# 限制评估样本数（加快评估速度）
+python scripts/eval.py --adapter output/lora_roleplay/final_model --max_samples 50
+```
+
+### 5. 运行测试
+
+```bash
+# 安装测试依赖
+pip install pytest
+
+# 运行所有测试
+pytest tests/ -v
+
+# 运行特定测试文件
+pytest tests/test_data_loader.py -v
+pytest tests/test_model.py -v
+pytest tests/test_inference.py -v
 ```
 
 ---
@@ -165,7 +193,15 @@ project/
 ├── scripts/
 │   ├── data_loader.py                # 数据下载与清洗
 │   ├── train.py                      # 训练脚本
-│   └── inference.py                  # 推理脚本
+│   ├── inference.py                  # 推理脚本
+│   └── eval.py                       # 评估脚本
+├── tests/                            # 单元测试
+│   ├── test_data_loader.py           # 数据加载测试
+│   ├── test_model.py                 # 模型配置测试
+│   └── test_inference.py             # 推理功能测试
+├── notebooks/                        # Colab 笔记本
+│   ├── train_on_colab.ipynb          # Colab 训练笔记本
+│   └── inference_on_colab.ipynb      # Colab 推理笔记本
 ├── processed/                        # 清洗后的数据
 ├── output/lora_roleplay/             # 训练输出
 │   └── final_model/                  # LoRA 权重
@@ -259,6 +295,20 @@ Colab `/content` 目录掉线会清空，建议存到 Google Drive：
 ├── processed/       # 清洗后数据
 └── outputs/         # 训练输出
 ```
+
+### 6. 方法二 使用 Colab 笔记本
+
+项目提供了现成的 Colab 笔记本，可直接导入使用：
+
+1. 打开 Google Colab
+2. 上传 `notebooks/train_on_colab.ipynb` 或 `notebooks/inference_on_colab.ipynb`
+3. 按照笔记本内的步骤执行
+
+笔记本已包含：
+- 环境安装
+- 数据准备
+- 模型加载与 LoRA 配置
+- 训练/推理流程
 
 ---
 
