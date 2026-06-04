@@ -282,8 +282,7 @@ def evaluate_model(model, tokenizer, val_data: list, device, config: dict) -> di
 
     # 1. 困惑度
     if generated_responses:
-        texts_for_ppl = [ref + gen for ref, gen in zip(reference_responses, generated_responses)]
-        perplexity = metrics_calc.calculate_perplexity(texts_for_ppl)
+        perplexity = metrics_calc.calculate_perplexity(reference_responses)
         results["perplexity"] = perplexity
         print(f"困惑度: {perplexity:.4f}")
 
@@ -363,8 +362,9 @@ def main():
     model, tokenizer = load_model_and_tokenizer(base_model_name, args.adapter)
 
     # 加载数据
-    train_data, val_data = load_local_dataset(args.dataset)
+    train_data, val_data, test_data = load_local_dataset(args.dataset)
     print(f"验证集大小: {len(val_data)}")
+    print(f"测试集大小: {len(test_data)}")
 
     # 评估配置
     eval_config = {

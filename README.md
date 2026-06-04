@@ -12,32 +12,50 @@
 
 ## 快速开始
 
-### 1. 安装依赖
+### 1. 克隆代码仓库
 
 ```bash
+git clone git@github.com:yeunmer2006/26ML-roleplay-lora.git
+cd 26ML-roleplay-lora
+```
+
+### 2. 创建 conda 环境并安装依赖
+
+```bash
+conda create -n ml_roleplay python=3.10 -y
+conda activate ml_roleplay
 pip install -r requirements.txt
 ```
 
-### 2. 验证环境
+### 3. 验证环境
 
 ```bash
 python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"None\"}')"
 ```
 
-### 3. 训练模型
+### 4. 下载基座模型（如无网络问题可跳过）
+
+模型约 6GB，首次训练会自动下载。如遇到网络问题，可使用镜像站加速：
 
 ```bash
-# 快速测试（推荐先跑，约 5-10 分钟）
+# 设置 HuggingFace 镜像站
+export HF_ENDPOINT=https://hf-mirror.com
+
+# 或手动下载模型到缓存目录
+hf download Qwen/Qwen2.5-3B-Instruct --local-dir ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B-Instruct
+```
+
+### 5. 训练模型
+
+```bash
 python scripts/train.py --config configs/lora_config_test.yaml
 
-# 本地训练（RTX 4060，约 30-60 分钟）
 python scripts/train.py --config configs/lora_config_local.yaml
 
-# Google Colab 训练（T4 GPU，约 30 分钟）
 python scripts/train.py --config configs/lora_config_colab.yaml
 ```
 
-### 4. 推理测试
+### 6. 推理测试
 
 ```bash
 # 交互式对话
@@ -51,7 +69,7 @@ python scripts/inference.py --adapter output/lora_roleplay/final_model \
 python scripts/inference.py --adapter output/lora_roleplay/final_model --batch
 ```
 
-### 5. 模型评估
+### 7. 模型评估
 
 ```bash
 python scripts/eval.py --adapter output/lora_roleplay/final_model --max_samples 50

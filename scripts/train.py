@@ -74,6 +74,7 @@ class Config:
 
         # 数据配置
         self.dataset_name = config["data"]["dataset_name"]
+        self.val_size = config["data"]["val_size"]
         self.test_size = config["data"]["test_size"]
         self.seed = config["data"]["seed"]
 
@@ -179,7 +180,7 @@ def prepare_dataset(config: Config, tokenizer):
     processed_dir = project_root / "processed"
 
     if (processed_dir / "train.jsonl").exists():
-        train_data, val_data = load_local_dataset(str(processed_dir))
+        train_data, val_data, _ = load_local_dataset(str(processed_dir))
         from datasets import Dataset
 
         train_dataset = Dataset.from_list(train_data)
@@ -196,14 +197,22 @@ def prepare_dataset(config: Config, tokenizer):
 
         # 划分数据集
         from sklearn.model_selection import train_test_split
-        train_idx, val_idx = train_test_split(
+        train_val_idx, test_idx = train_test_split(
             range(len(dataset)),
             test_size=config.test_size,
             random_state=config.seed
         )
+        train_val_dataset = dataset.select(train_val_idx)
+        test_dataset = dataset.select(test_idx)
 
-        train_dataset = dataset.select(train_idx)
-        val_dataset = dataset.select(val_idx)
+        train_idx, val_idx = train_test_split(
+            range(len(train_val_dataset)),
+            test_size=config.val_size / (1 - config.test_size),  # 调整为相对比例以保持 8/1/1 划分
+            random_state=config.seed
+        )
+
+        train_dataset = train_val_dataset.select(train_idx)
+        val_dataset = train_val_dataset.select(val_idx)
 
     print(f"训练集: {len(train_dataset)} 条")
     print(f"验证集: {len(val_dataset)} 条")
@@ -277,7 +286,7 @@ def create_trainer(model, tokenizer, train_dataset, val_dataset, config: Config)
         eval_strategy=config.evaluation_strategy,
         save_total_limit=config.save_total_limit,
         fp16=config.fp16,
-        optim="adamw_bnb_8bit",
+        optim=config.optim,
         load_best_model_at_end=config.load_best_model_at_end,
         metric_for_best_model=config.metric_for_best_model,
         greater_is_better=config.greater_is_better,
