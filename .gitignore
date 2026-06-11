@@ -19,7 +19,7 @@ __pycache__/
 # 虚拟环境
 venv/
 env/
-ml_2026_hw/
+ml_roleplay/
 
 # 模型权重
 *.safetensors
@@ -40,6 +40,7 @@ checkpoints/
 
 # HuggingFace 缓存（可选，节省空间）
 .huggingface/
+.cache/
 
 # 敏感信息
 .env

@@ -51,7 +51,7 @@ class TestInference:
 
     def test_load_nonexistent_card(self):
         """测试加载不存在的角色卡"""
-        with pytest.raises FileNotFoundError:
+        with pytest.raises(FileNotFoundError):
             load_character_card("nonexistent/path/card.json")
 
     def test_inference_config_load(self):

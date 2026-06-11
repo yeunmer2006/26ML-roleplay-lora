@@ -20,22 +20,24 @@ class TestModelConfig:
 
     def test_config_load_local(self):
         """测试加载本地配置文件"""
-        config = Config(str(project_root / "configs" / "lora_config.yaml"))
+        config = Config(str(project_root / "configs" / "train_4060.yaml"))
 
         assert config.model_name == "Qwen/Qwen2.5-3B-Instruct"
-        assert config.lora_r == 16
-        assert config.max_seq_length == 1024
+        assert config.lora_r == 8
+        assert config.max_seq_length == 512
+        assert config.max_train_samples == 4000
 
-    def test_config_load_colab(self):
-        """测试加载 Colab 配置文件"""
-        config = Config(str(project_root / "configs" / "lora_config_colab.yaml"))
+    def test_config_load_smoke(self):
+        """测试加载冒烟配置文件"""
+        config = Config(str(project_root / "configs" / "train_smoke.yaml"))
 
-        assert config.lora_r == 32
-        assert config.max_seq_length == 2048
+        assert config.lora_r == 8
+        assert config.max_seq_length == 256
+        assert config.max_steps == 10
 
     def test_lora_config_values(self):
         """测试 LoRA 配置值是否合理"""
-        config = Config(str(project_root / "configs" / "lora_config.yaml"))
+        config = Config(str(project_root / "configs" / "train_4060.yaml"))
 
         # LoRA rank 应为正数
         assert config.lora_r > 0, "LoRA rank 应大于 0"
@@ -51,7 +53,7 @@ class TestModelConfig:
 
     def test_training_config_values(self):
         """测试训练配置值是否合理"""
-        config = Config(str(project_root / "configs" / "lora_config.yaml"))
+        config = Config(str(project_root / "configs" / "train_4060.yaml"))
 
         # 学习率应为正数
         assert config.learning_rate > 0, "学习率应为正数"
@@ -64,7 +66,7 @@ class TestModelConfig:
 
     def test_inference_config_accessible(self):
         """测试推理配置可访问"""
-        config = Config(str(project_root / "configs" / "lora_config.yaml"))
+        config = Config(str(project_root / "configs" / "train_4060.yaml"))
 
         # 检查 Config 类是否正确读取 inference 配置
         # 由于 train.py 的 Config 类主要服务于训练，

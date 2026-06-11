@@ -33,27 +33,50 @@ pip install -r requirements.txt
 python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"None\"}')"
 ```
 
-### 4. 下载基座模型（如无网络问题可跳过）
+### 4. 准备基座模型
 
-模型约 6GB，首次训练会自动下载。如遇到网络问题，可使用镜像站加速：
+模型约 6GB。准备脚本会依次检查用户指定目录、项目内 `models/` 和
+`.cache/`、Hugging Face 标准缓存、ModelScope 标准缓存。检查会验证
+tokenizer、权重索引和全部权重分片，找到完整模型后不会重复下载。
+
+本地没有完整模型时，会优先从 Hugging Face 下载，失败后自动回退到
+ModelScope。需要 Hugging Face 镜像时可提前设置：
 
 ```bash
-# 设置 HuggingFace 镜像站
 export HF_ENDPOINT=https://hf-mirror.com
-
-# 或手动下载模型到缓存目录
-hf download Qwen/Qwen2.5-3B-Instruct --local-dir ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B-Instruct
 ```
 
 ### 5. 训练模型
 
 ```bash
-python scripts/train.py --config configs/lora_config_test.yaml
+# 首次准备：安装依赖，检查模型和 processed/ 数据，缺失时自动下载
+bash scripts/prepare_training.sh
 
-python scripts/train.py --config configs/lora_config_local.yaml
+# 先运行约 10 steps 的冒烟测试
+bash scripts/run_training.sh smoke
 
-python scripts/train.py --config configs/lora_config_colab.yaml
+# RTX 4060 正式训练（先执行 50-step 时间预检）
+bash scripts/run_training.sh train
+
+# 从 checkpoint 继续
+bash scripts/run_training.sh train \
+    --resume output/experiments/run_001/checkpoint-250
 ```
+
+训练脚本会自动激活 `ml_roleplay` Conda 环境。PyTorch 不由项目依赖文件
+重装，以保留与本机 CUDA 匹配的版本。
+
+模型和数据目录可显式覆盖，路径相对于项目根目录解析：
+
+```bash
+MODEL_DIR=models/Qwen2.5-3B-Instruct DATA_DIR=processed \
+  bash scripts/prepare_training.sh
+```
+
+本地和 AutoDL 使用同一流程。若 `processed/train.jsonl`、`val.jsonl`、
+`test.jsonl` 完整可解析，脚本会直接复用；否则从
+`KaraKaraWitch/PIPPA-ShareGPT-formatted` 下载、清洗并写入 `processed/`，
+不需要手动制作或上传压缩包。
 
 ### 6. 推理测试
 

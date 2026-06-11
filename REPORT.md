@@ -246,8 +246,8 @@ project/
 ### 9.1 Environment Setup
 
 ```bash
-conda create -n ml_2026_hw python=3.10
-conda activate ml_2026_hw
+conda create -n ml_roleplay python=3.10
+conda activate ml_roleplay
 pip install -r requirements.txt
 ```
 
