@@ -119,9 +119,11 @@ python scripts/inference.py \
 
 ### 7. 模型评估
 
+conda activate ml_roleplay
+
 ```bash
-export JUDGE_BASE_URL="https://your-provider.example/v1"
-export JUDGE_MODEL="your-judge-model"
+export JUDGE_BASE_URL="https://api.minimaxi.com/v1"
+export JUDGE_MODEL="MiniMax-M3"
 read -rsp "Judge API Key: " JUDGE_API_KEY
 echo
 export JUDGE_API_KEY
@@ -131,9 +133,9 @@ BASE_MODEL="$(python scripts/resource_manager.py resolve-model \
 
 python scripts/eval.py compare \
   --base_model "${BASE_MODEL}" \
-  --adapter "${ADAPTER_DIR:-output/experiments/run_001/final_model}" \
+  --adapter output/experiments/train_1/final_model \
   --dataset processed \
-  --output_dir output/evaluations/run_001
+  --output_dir output/evaluations/train_1
 
 unset JUDGE_API_KEY JUDGE_BASE_URL JUDGE_MODEL
 ```
