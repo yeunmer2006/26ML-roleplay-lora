@@ -80,16 +80,23 @@ MODEL_DIR=models/Qwen2.5-3B-Instruct DATA_DIR=processed \
 
 ### 6. 推理测试
 
+`run_training.sh` 会把 LoRA 权重写到 `output/experiments/<run_name>/final_model`
+（其中 `<run_name>` 形如 `train_20260610_232946`，可在终端输出中找到）。
+把下面的 `run_001` 替换成实际的运行名：
+
 ```bash
 # 交互式对话
-python scripts/inference.py --adapter output/lora_roleplay/final_model
+python scripts/inference.py \
+    --adapter output/experiments/run_001/final_model
 
 # 指定角色卡
-python scripts/inference.py --adapter output/lora_roleplay/final_model \
+python scripts/inference.py \
+    --adapter output/experiments/run_001/final_model \
     --character configs/character_cards/alina.json
 
 # 批量测试
-python scripts/inference.py --adapter output/lora_roleplay/final_model --batch
+python scripts/inference.py \
+    --adapter output/experiments/run_001/final_model --batch
 ```
 
 ### 7. 模型评估
