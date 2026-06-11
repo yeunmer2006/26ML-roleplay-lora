@@ -19,6 +19,22 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 
+def resolve_model_source(value: str) -> str:
+    """Resolve an existing local model path relative to the project root."""
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return str(path)
+    project_path = project_root / path
+    return str(project_path) if project_path.exists() else value
+
+
+def resolve_local_path(value: str = None) -> str:
+    if not value:
+        return None
+    path = Path(value).expanduser()
+    return str(path if path.is_absolute() else project_root / path)
+
+
 class InferenceConfig:
     """推理配置类"""
 
@@ -51,7 +67,9 @@ def load_model_and_tokenizer(base_model_name: str, adapter_path: str = None):
         model: 加载了 adapter 的模型
         tokenizer: 分词器
     """
-    print("=== 加载模型 ===")
+    base_model_name = resolve_model_source(base_model_name)
+    adapter_path = resolve_local_path(adapter_path)
+    print(f"=== 加载模型: {base_model_name} ===")
 
     # 加载分词器
     tokenizer = AutoTokenizer.from_pretrained(
@@ -310,12 +328,20 @@ def batch_inference(
         print("-" * 50)
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser(description="LoRA 推理脚本")
-    parser.add_argument("--base_model", type=str, default=None,
-                        help="基座模型名称")
-    parser.add_argument("--adapter", type=str, default=None,
-                        help="LoRA adapter 路径")
+    parser.add_argument(
+        "--base_model",
+        type=str,
+        default=os.getenv("MODEL_DIR"),
+        help="基座模型目录或模型 ID；默认读取 MODEL_DIR",
+    )
+    parser.add_argument(
+        "--adapter",
+        type=str,
+        default=os.getenv("ADAPTER_DIR"),
+        help="LoRA adapter 路径；默认读取 ADAPTER_DIR",
+    )
     parser.add_argument("--character", type=str,
                         default="configs/character_cards/alina.json",
                         help="角色卡路径")
@@ -327,7 +353,11 @@ def main():
                         help="最大生成长度")
     parser.add_argument("--temperature", type=float, default=None,
                         help="采样温度")
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    args = build_parser().parse_args()
 
     # 加载配置
     if args.config:

@@ -73,6 +73,24 @@ MODEL_DIR=models/Qwen2.5-3B-Instruct DATA_DIR=processed \
   bash scripts/prepare_training.sh
 ```
 
+所有模型加载入口都支持显式路径。命令行参数优先于环境变量：
+
+```bash
+export MODEL_DIR=
+export ADAPTER_DIR=output/experiments/run_001/final_model
+
+python scripts/train.py --model_path "${MODEL_DIR}"
+python scripts/inference.py --base_model "${MODEL_DIR}" --adapter "${ADAPTER_DIR}"
+python scripts/eval.py compare \
+  --base_model "${MODEL_DIR}" \
+  --adapter "${ADAPTER_DIR}" \
+  --dataset processed \
+  --output_dir output/evaluations/run_001
+```
+
+省略对应命令行参数时，训练、推理和评估会分别读取 `MODEL_DIR` 与
+`ADAPTER_DIR`。
+
 本地和 AutoDL 使用同一流程。若 `processed/train.jsonl`、`val.jsonl`、
 `test.jsonl` 完整可解析，脚本会直接复用；否则从
 `KaraKaraWitch/PIPPA-ShareGPT-formatted` 下载、清洗并写入 `processed/`，
@@ -113,7 +131,7 @@ BASE_MODEL="$(python scripts/resource_manager.py resolve-model \
 
 python scripts/eval.py compare \
   --base_model "${BASE_MODEL}" \
-  --adapter output/experiments/run_001/final_model \
+  --adapter "${ADAPTER_DIR:-output/experiments/run_001/final_model}" \
   --dataset processed \
   --output_dir output/evaluations/run_001
 

@@ -12,7 +12,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from scripts.train import Config
+from scripts.train import Config, parse_args, resolve_model_source
 
 
 class TestModelConfig:
@@ -34,6 +34,39 @@ class TestModelConfig:
         assert config.lora_r == 8
         assert config.max_seq_length == 256
         assert config.max_steps == 10
+
+    def test_model_path_defaults_to_environment(self, monkeypatch):
+        monkeypatch.setenv("MODEL_DIR", "/models/qwen")
+        monkeypatch.setattr(sys, "argv", ["train.py"])
+
+        args = parse_args()
+
+        assert args.model_path == "/models/qwen"
+
+    def test_explicit_model_path_overrides_environment(self, monkeypatch):
+        monkeypatch.setenv("MODEL_DIR", "/models/from-env")
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["train.py", "--model_path", "/models/from-cli"],
+        )
+
+        args = parse_args()
+
+        assert args.model_path == "/models/from-cli"
+
+    def test_remote_model_id_is_not_converted_to_local_path(self):
+        assert (
+            resolve_model_source("Qwen/Qwen2.5-3B-Instruct")
+            == "Qwen/Qwen2.5-3B-Instruct"
+        )
+
+    def test_existing_relative_model_path_is_resolved(self, monkeypatch, tmp_path):
+        model = tmp_path / "models" / "qwen"
+        model.mkdir(parents=True)
+        monkeypatch.setattr("scripts.train.PROJECT_ROOT", tmp_path)
+
+        assert resolve_model_source("models/qwen") == str(model)
 
     def test_lora_config_values(self):
         """测试 LoRA 配置值是否合理"""

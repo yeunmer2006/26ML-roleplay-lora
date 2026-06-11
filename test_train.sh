@@ -19,12 +19,19 @@ printf '\n'
 export JUDGE_API_KEY
 export JUDGE_BASE_URL="https://api.minimaxi.com/v1"
 export JUDGE_MODEL="MiniMax-M3"
+ADAPTER_DIR="${ADAPTER_DIR:-output/experiments/smoke_20260610_232946/final_model}"
 
-BASE_MODEL="$(python scripts/resource_manager.py resolve-model \
-  --project-root "${SCRIPT_DIR}")"
+MODEL_ARGS=(
+  resolve-model
+  --project-root "${SCRIPT_DIR}"
+)
+if [[ -n "${MODEL_DIR:-}" ]]; then
+  MODEL_ARGS+=(--model-dir "${MODEL_DIR}")
+fi
+BASE_MODEL="$(python scripts/resource_manager.py "${MODEL_ARGS[@]}")"
 
 python scripts/eval.py compare \
   --base_model "${BASE_MODEL}" \
-  --adapter output/experiments/smoke_20260610_232946/final_model \
+  --adapter "${ADAPTER_DIR}" \
   --dataset processed \
   --output_dir output/evaluations/smoke_001

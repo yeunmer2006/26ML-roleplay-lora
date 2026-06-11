@@ -13,6 +13,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from scripts.inference import (
+    build_parser,
     load_character_card,
     chat,
     InferenceConfig
@@ -62,6 +63,27 @@ class TestInference:
         assert config.model_name == "Qwen/Qwen2.5-3B-Instruct"
         assert hasattr(config, "max_new_tokens")
         assert hasattr(config, "temperature")
+
+    def test_model_paths_default_to_environment(self, monkeypatch):
+        monkeypatch.setenv("MODEL_DIR", "/models/qwen")
+        monkeypatch.setenv("ADAPTER_DIR", "/models/adapter")
+
+        args = build_parser().parse_args([])
+
+        assert args.base_model == "/models/qwen"
+        assert args.adapter == "/models/adapter"
+
+    def test_explicit_model_paths_override_environment(self, monkeypatch):
+        monkeypatch.setenv("MODEL_DIR", "/models/from-env")
+        monkeypatch.setenv("ADAPTER_DIR", "/adapter/from-env")
+
+        args = build_parser().parse_args([
+            "--base_model", "/models/from-cli",
+            "--adapter", "/adapter/from-cli",
+        ])
+
+        assert args.base_model == "/models/from-cli"
+        assert args.adapter == "/adapter/from-cli"
 
     def test_character_cards_exist(self):
         """测试角色卡目录是否存在并包含文件"""

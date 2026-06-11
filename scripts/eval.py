@@ -1038,6 +1038,12 @@ def prepare_output(args):
 
 
 def compare(args):
+    if not args.base_model:
+        raise RuntimeError(
+            "Set --base_model or MODEL_DIR to the base model directory or model ID"
+        )
+    if not args.adapter:
+        raise RuntimeError("Set --adapter or ADAPTER_DIR to the LoRA adapter directory")
     paths, single_records, multi_records = prepare_output(args)
     base_source = resolve_model_source(args.base_model)
     adapter_source = resolve_path(args.adapter)
@@ -1129,8 +1135,16 @@ def build_parser():
     parser = argparse.ArgumentParser(description="Role-play LoRA evaluation")
     subparsers = parser.add_subparsers(dest="command", required=True)
     compare_parser = subparsers.add_parser("compare", help="Run three-way ablation")
-    compare_parser.add_argument("--base_model", required=True)
-    compare_parser.add_argument("--adapter", required=True)
+    compare_parser.add_argument(
+        "--base_model",
+        default=os.getenv("MODEL_DIR"),
+        help="Base model directory or model ID; defaults to MODEL_DIR",
+    )
+    compare_parser.add_argument(
+        "--adapter",
+        default=os.getenv("ADAPTER_DIR"),
+        help="LoRA adapter directory; defaults to ADAPTER_DIR",
+    )
     compare_parser.add_argument("--dataset", default="processed")
     compare_parser.add_argument("--output_dir", required=True)
     compare_parser.add_argument(

@@ -17,6 +17,7 @@ from scripts.eval import (
     summarize,
     validate_judgment,
     write_jsonl,
+    build_parser,
 )
 
 
@@ -335,3 +336,35 @@ def test_resume_with_complete_generations_does_not_load_model(monkeypatch, tmp_p
     compare(args)
     assert (output_dir / "summary.json").exists()
     assert (output_dir / "report.md").exists()
+
+
+def test_eval_model_paths_default_to_environment(monkeypatch):
+    monkeypatch.setenv("MODEL_DIR", "/models/qwen")
+    monkeypatch.setenv("ADAPTER_DIR", "/models/adapter")
+
+    args = build_parser().parse_args([
+        "compare",
+        "--output_dir",
+        "output/evaluations/test",
+    ])
+
+    assert args.base_model == "/models/qwen"
+    assert args.adapter == "/models/adapter"
+
+
+def test_eval_explicit_model_paths_override_environment(monkeypatch):
+    monkeypatch.setenv("MODEL_DIR", "/models/from-env")
+    monkeypatch.setenv("ADAPTER_DIR", "/adapter/from-env")
+
+    args = build_parser().parse_args([
+        "compare",
+        "--base_model",
+        "/models/from-cli",
+        "--adapter",
+        "/adapter/from-cli",
+        "--output_dir",
+        "output/evaluations/test",
+    ])
+
+    assert args.base_model == "/models/from-cli"
+    assert args.adapter == "/adapter/from-cli"

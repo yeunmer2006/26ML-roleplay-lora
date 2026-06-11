@@ -105,8 +105,18 @@ def resolve_path(value):
     return path if path.is_absolute() else PROJECT_ROOT / path
 
 
+def resolve_model_source(value):
+    if not value:
+        return value
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return str(path)
+    project_path = PROJECT_ROOT / path
+    return str(project_path) if project_path.exists() else value
+
+
 def load_model_and_tokenizer(config, model_path=None):
-    source = str(resolve_path(model_path)) if model_path else config.model_name
+    source = resolve_model_source(model_path) if model_path else config.model_name
     print(f"\n=== 加载模型: {source} ===")
     tokenizer = AutoTokenizer.from_pretrained(
         source,
@@ -406,7 +416,11 @@ def parse_args():
     parser.add_argument("--config", default="configs/train_4060.yaml")
     parser.add_argument("--data_dir")
     parser.add_argument("--output_dir")
-    parser.add_argument("--model_path")
+    parser.add_argument(
+        "--model_path",
+        default=os.getenv("MODEL_DIR"),
+        help="基座模型目录或模型 ID；默认读取 MODEL_DIR",
+    )
     parser.add_argument("--max_train_samples", type=int)
     parser.add_argument("--max_eval_samples", type=int)
     parser.add_argument("--max_steps", type=int)

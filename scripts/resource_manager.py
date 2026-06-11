@@ -4,6 +4,7 @@
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -362,7 +363,7 @@ def parse_args():
     model_parser = subparsers.add_parser("resolve-model")
     model_parser.add_argument("--project-root", default=str(PROJECT_ROOT))
     model_parser.add_argument("--model-id", default=DEFAULT_MODEL_ID)
-    model_parser.add_argument("--model-dir")
+    model_parser.add_argument("--model-dir", default=os.getenv("MODEL_DIR"))
     model_parser.add_argument("--download", action="store_true")
 
     data_parser = subparsers.add_parser("prepare-data")
@@ -374,7 +375,7 @@ def parse_args():
     prepare_parser = subparsers.add_parser("prepare")
     prepare_parser.add_argument("--project-root", default=str(PROJECT_ROOT))
     prepare_parser.add_argument("--model-id", default=DEFAULT_MODEL_ID)
-    prepare_parser.add_argument("--model-dir")
+    prepare_parser.add_argument("--model-dir", default=os.getenv("MODEL_DIR"))
     prepare_parser.add_argument("--data-dir", default="processed")
     prepare_parser.add_argument("--dataset-id", default=DEFAULT_DATASET_ID)
     return parser.parse_args()

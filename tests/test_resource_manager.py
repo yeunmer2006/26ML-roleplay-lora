@@ -1,8 +1,10 @@
 import json
+import sys
 from pathlib import Path
 
 from scripts.resource_manager import (
     find_complete_model,
+    parse_args,
     prepare_data,
     resolve_model,
     validate_data_dir,
@@ -70,6 +72,20 @@ def test_incomplete_explicit_model_falls_back_to_project_cache(tmp_path):
     assert resolved == cached.resolve()
     assert checked[0][0] == incomplete.resolve()
     assert not checked[0][1]
+
+
+def test_resolve_model_cli_uses_model_dir_environment(monkeypatch, tmp_path):
+    model = make_model(tmp_path / "external-model")
+    monkeypatch.setenv("MODEL_DIR", str(model))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["resource_manager.py", "resolve-model"],
+    )
+
+    args = parse_args()
+
+    assert args.model_dir == str(model)
 
 
 def test_complete_huggingface_snapshot_used_after_project_candidates(tmp_path):

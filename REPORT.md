@@ -265,6 +265,7 @@ python scripts/train.py --config configs/lora_config_local.yaml
 
 ```bash
 # Interactive dialogue
+MODEL_DIR=/path/to/Qwen2.5-3B-Instruct \
 python scripts/inference.py --adapter output/lora_roleplay/final_model
 
 # Specify character card
@@ -275,7 +276,11 @@ python scripts/inference.py --adapter output/lora_roleplay/final_model \
 ### 9.4 Evaluation
 
 ```bash
-python scripts/eval.py --adapter output/lora_roleplay/final_model --max_samples 50
+MODEL_DIR=/path/to/Qwen2.5-3B-Instruct \
+ADAPTER_DIR=output/lora_roleplay/final_model \
+python scripts/eval.py compare \
+  --dataset processed \
+  --output_dir output/evaluations/default
 ```
 
 ---
