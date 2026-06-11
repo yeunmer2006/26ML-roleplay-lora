@@ -119,10 +119,12 @@ python scripts/inference.py \
 
 ### 7. 模型评估
 
+> 目前默认是minimax的api
+
 conda activate ml_roleplay
 
 ```bash
-export JUDGE_BASE_URL="https://api.minimaxi.com/v1"
+export JUDGE_BASE_URL="https://api.minimaxi.com"
 export JUDGE_MODEL="MiniMax-M3"
 read -rsp "Judge API Key: " JUDGE_API_KEY
 echo
@@ -145,6 +147,47 @@ unset JUDGE_API_KEY JUDGE_BASE_URL JUDGE_MODEL
 用于报告的 Markdown。添加 `--resume` 可继续中断的生成或裁判任务；添加
 `--skip_judge` 可仅运行本地自动指标。
 
+#### 断点续跑（resume）
+
+评估是有状态的：每条样本每完成一个系统、每完成一次 judge 调用，都会**立即
+写回** `output/evaluations/<run_name>/` 下的 JSONL，因此中途断电、网络中断
+或 judge 限流都不会丢失已完成的进度。下一次执行只需在命令尾部加上
+`--resume`：
+
+```bash
+python scripts/eval.py compare \
+  --base_model "${BASE_MODEL}" \
+  --adapter output/experiments/train_1/final_model \
+  --dataset processed \
+  --output_dir output/evaluations/train_1 \
+  --resume
+```
+
+`--resume` 的行为如下：
+
+- **样本选择**：使用稳定哈希（`sha256(seed:sample_id)`）排序并去重，已落盘
+  的 `single_turn_samples.jsonl` / `multi_turn_samples.jsonl` 会原样复用，
+  不会因为数据集更新而重新洗牌。
+- **生成阶段**：跳过那些在 `systems` 字段中已经存在对应系统（`base_no_card` /
+  `base_with_card` / `lora_with_card`）的样本，只补齐缺失的部分。三组系统
+  互不依赖，所以中断后只重跑未完成的系统，不会重跑已完成的。
+- **Judge 阶段**：跳过 `judge` 字段已填充的样本；任何 judge API 失败的
+  样本会被记录到 `judge_failures.jsonl`，下次 resume 时自动重试，成功后
+  再从失败文件中移除。
+- **一致性检查**：每 10 条样本会重跑一次匿名化打分，验证 judge 排序是否
+  稳定。如果某次一致性检查中断，下次 resume 会照常补跑。
+- **只跑自动指标**：想跳过 judge API 单独补全 PPL、distinct、repetition
+  等本地指标时，加 `--skip_judge` 即可，已有的 judge 结果会保留。
+
+常见续跑场景：
+
+| 场景 | 命令特征 |
+|------|---------|
+| 中途中断，想从断点继续 | `--resume` |
+| judge 配额耗尽，只补自动指标 | `--resume --skip_judge` |
+| 重新生成某个系统的回答 | 删除该样本在 `systems` 字段下对应键再 `--resume` |
+| 重新跑全部 judge | 备份后删除 `judge` / `judge_consistency` 字段再 `--resume` |
+
 API Key 不直接写入脚本或命令参数。若密钥曾以明文形式保存或提交，应立即
 在服务商控制台撤销并重新生成。
 
@@ -153,22 +196,42 @@ API Key 不直接写入脚本或命令参数。若密钥曾以明文形式保存
 ```
 project/
 ├── configs/                      # 配置文件
-│   ├── lora_config.yaml          # 默认配置
-│   ├── lora_config_local.yaml   # RTX 4060
-│   ├── lora_config_colab.yaml   # Google Colab
-│   ├── lora_config_test.yaml    # 快速测试
+│   ├── lora_config.yaml          # 推理默认配置
+│   ├── train_4060.yaml          # RTX 4060 训练配置(训练脚本默认)
+│   ├── train_smoke.yaml         # 冒烟测试配置
+│   ├── eval_safety_terms.json   # 评估安全词表
 │   └── character_cards/         # 角色卡
-├── scripts/                      # Python 脚本
+│       ├── alina.json
+│       ├── luoji.json
+│       ├── harry_potter.json
+│       ├── hermione.json
+│       ├── gandalf.json
+│       └── template.json
+├── scripts/                      # Python 与 Shell 脚本
 │   ├── data_loader.py           # 数据下载与清洗
-│   ├── train.py                 # 训练脚本
+│   ├── train.py                 # 训练入口
 │   ├── inference.py             # 推理脚本
-│   └── eval.py                  # 评估脚本
-├── tests/                       # 单元测试
-├── notebooks/                   # Colab 笔记本
-├── processed/                   # 清洗后的数据
-├── output/lora_roleplay/        # 训练输出
-│   └── final_model/             # LoRA 权重
-└── requirements.txt
+│   ├── eval.py                  # 评估脚本
+│   ├── resource_manager.py      # 模型/数据路径解析与下载
+│   ├── prepare_training.sh      # 环境准备
+│   └── run_training.sh          # 训练入口(smoke / train)
+├── tests/                        # 单元测试
+│   ├── test_data_loader.py
+│   ├── test_eval.py
+│   ├── test_inference.py
+│   ├── test_model.py
+│   └── test_resource_manager.py
+├── notebooks/                    # Colab 笔记本
+│   ├── train_on_colab.ipynb
+│   └── inference_on_colab.ipynb
+├── processed/                    # 清洗后的数据(自动生成)
+├── output/
+│   ├── experiments/              # 训练输出
+│   └── evaluations/              # 评估输出
+├── data/                         # 原始数据(预留,被 .gitignore 忽略)
+├── models/                       # 本地模型缓存(被 .gitignore 忽略)
+├── requirements.txt              # 推理/通用依赖
+└── requirements-training.txt     # 训练依赖(固定版本,不含 PyTorch),被脚本scripts/prepare_training.sh使用
 ```
 
 ## 角色卡格式

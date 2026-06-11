@@ -544,6 +544,10 @@ def judge_schema_prompt(kind, character_card, context, answers):
 
 def parse_json_response(text):
     cleaned = text.strip()
+    # MiniMax-M3 默认开启 adaptive thinking，会在内容前注入
+    # <think>...</think> 块；JSON parser 看到非 JSON 前缀会直接抛错。
+    cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL)
+    cleaned = cleaned.strip()
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
     cleaned = re.sub(r"\s*```$", "", cleaned)
     return json.loads(cleaned)
@@ -564,14 +568,41 @@ def validate_judgment(value, dimensions):
 
 
 class JudgeClient:
-    def __init__(self, base_url, api_key, model, timeout=120, retries=3):
-        self.url = base_url.rstrip("/") + "/chat/completions"
+    def __init__(self, base_url, api_key, model, timeout=120, retries=3,
+                 max_completion_tokens=4096, disable_thinking=True):
+        # 兼容 base url 的几种常见写法：
+        #   https://api.minimaxi.com
+        #   https://api.minimaxi.com/v1
+        #   https://api.minimaxi.com/v1/chat/completions
+        base_url = base_url.rstrip("/")
+        if base_url.endswith("/chat/completions"):
+            self.url = base_url
+        elif base_url.endswith("/v1"):
+            self.url = base_url + "/chat/completions"
+        else:
+            self.url = base_url + "/v1/chat/completions"
         self.api_key = api_key
         self.model = model
         self.timeout = timeout
         self.retries = retries
+        self.max_completion_tokens = max_completion_tokens
+        self.disable_thinking = disable_thinking
 
     def evaluate(self, prompt, dimensions):
+        payload = {
+            "model": self.model,
+            "temperature": 0,
+            "max_completion_tokens": self.max_completion_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        # M3 默认开启 adaptive thinking，会在 content 里塞 <think>…</think>；
+        # 显式关掉，judge 任务用不到思考，且避免污染 JSON 输出。
+        # M2.x 关闭无效，会回退到 parse_json_response 里 strip 一次。
+        if self.disable_thinking:
+            payload["thinking"] = {"type": "disabled"}
+            # reasoning_split 即使不开 thinking 也无害：把任何残余
+            # thinking 内容拆到独立字段，content 保持干净。
+            payload["reasoning_split"] = True
         last_error = None
         for attempt in range(self.retries):
             try:
@@ -581,15 +612,17 @@ class JudgeClient:
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json",
                     },
-                    json={
-                        "model": self.model,
-                        "temperature": 0,
-                        "messages": [{"role": "user", "content": prompt}],
-                    },
+                    json=payload,
                     timeout=self.timeout,
                 )
                 response.raise_for_status()
-                content = response.json()["choices"][0]["message"]["content"]
+                body = response.json()
+                message = body["choices"][0]["message"]
+                # reasoning_split 启用时 thinking 走 reasoning_content；
+                # 未启用或模型不支持时，content 里可能还带 <think>…</think>。
+                content = message.get("content") or message.get("reasoning_content") or ""
+                if not content:
+                    raise ValueError(f"empty assistant message: {message!r}")
                 parsed = validate_judgment(parse_json_response(content), dimensions)
                 return {"parsed": parsed, "raw": content}
             except Exception as error:
@@ -1107,6 +1140,15 @@ def compare(args):
             raise RuntimeError(
                 "Set JUDGE_API_KEY, JUDGE_BASE_URL and JUDGE_MODEL, "
                 "or pass --skip_judge"
+            )
+        # 历史教训：环境变量里被塞进了 'echo\rexport JUDGE_API_KEY' 这种
+        # shell 残片，会让 Authorization header 出现非法 \r 字符。这里
+        # 显式 strip 一次并校验前缀，避免 120 次调用全部失败。
+        api_key = api_key.replace("\r", "").replace("\n", "").strip()
+        if not api_key.startswith("ey") and not api_key.startswith("sk-"):
+            raise RuntimeError(
+                "JUDGE_API_KEY 看起来不对（既不以 'sk-' 也不以 'ey' 开头）："
+                f" {api_key[:20]!r}…"
             )
         client = JudgeClient(base_url, api_key, judge_model)
         judge_records(
