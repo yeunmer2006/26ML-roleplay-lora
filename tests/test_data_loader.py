@@ -13,6 +13,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from scripts.data_loader import (
+    encode_conversation,
     load_local_dataset,
     format_conversation,
     tokenize_function
@@ -67,10 +68,11 @@ class TestDataLoader:
 
     def test_load_local_dataset(self):
         """测试从本地加载数据集"""
-        train_data, val_data = load_local_dataset("./processed")
+        train_data, val_data, test_data = load_local_dataset("./processed")
 
         assert isinstance(train_data, list), "训练集应为列表"
         assert isinstance(val_data, list), "验证集应为列表"
+        assert isinstance(test_data, list), "测试集应为列表"
         assert len(train_data) > 0, "训练集不应为空"
         assert len(val_data) > 0, "验证集不应为空"
 
@@ -112,9 +114,19 @@ class TestDataLoader:
         assert len(result["input_ids"]) == len(result["labels"]), \
             "input_ids 和 labels 长度应一致"
 
+    def test_encode_conversation_masks_non_assistant_tokens(
+        self, sample_data, mock_tokenizer
+    ):
+        """训练标签只监督 assistant 内容。"""
+        result = encode_conversation(sample_data, mock_tokenizer, max_length=200)
+
+        assert result["length"] == len(result["input_ids"])
+        assert any(label == -100 for label in result["labels"])
+        assert any(label != -100 for label in result["labels"])
+
     def test_data_integrity(self):
         """测试数据完整性"""
-        train_data, val_data = load_local_dataset("./processed")
+        train_data, val_data, _ = load_local_dataset("./processed")
 
         # 检查 system 角色存在
         for item in train_data[:10]:
