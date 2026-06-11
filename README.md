@@ -95,8 +95,31 @@ python scripts/inference.py --adapter output/lora_roleplay/final_model --batch
 ### 7. 模型评估
 
 ```bash
-python scripts/eval.py --adapter output/lora_roleplay/final_model --max_samples 50
+export JUDGE_BASE_URL="https://your-provider.example/v1"
+export JUDGE_MODEL="your-judge-model"
+read -rsp "Judge API Key: " JUDGE_API_KEY
+echo
+export JUDGE_API_KEY
+
+BASE_MODEL="$(python scripts/resource_manager.py resolve-model \
+  --project-root .)"
+
+python scripts/eval.py compare \
+  --base_model "${BASE_MODEL}" \
+  --adapter output/experiments/run_001/final_model \
+  --dataset processed \
+  --output_dir output/evaluations/run_001
+
+unset JUDGE_API_KEY JUDGE_BASE_URL JUDGE_MODEL
 ```
+
+评估会比较无角色卡基座、角色卡基座和角色卡 LoRA 三组系统，默认使用
+100 条单轮样本和 20 个四轮挑战。结果包含逐样本 JSONL、汇总 JSON 和可直接
+用于报告的 Markdown。添加 `--resume` 可继续中断的生成或裁判任务；添加
+`--skip_judge` 可仅运行本地自动指标。
+
+API Key 不直接写入脚本或命令参数。若密钥曾以明文形式保存或提交，应立即
+在服务商控制台撤销并重新生成。
 
 ## 项目结构
 
@@ -120,14 +143,6 @@ project/
 │   └── final_model/             # LoRA 权重
 └── requirements.txt
 ```
-
-## 配置文件说明
-
-| 配置 | 硬件 | 主要参数 | 预计时间 |
-|------|------|----------|----------|
-| `lora_config_test.yaml` | 快速测试 | r=8, seq=256, batch=2 | ~5-10 分钟 |
-| `lora_config_local.yaml` | RTX 4060 | r=16, seq=1024, batch=1 | ~30-60 分钟 |
-| `lora_config_colab.yaml` | Colab T4 | r=32, seq=2048, batch=4 | ~30 分钟 |
 
 ## 角色卡格式
 
