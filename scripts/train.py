@@ -98,6 +98,10 @@ class Config:
         self.data_dir = data.get("data_dir", "processed")
         self.max_train_samples = data.get("max_train_samples", 4000)
         self.max_eval_samples = data.get("max_eval_samples", 200)
+        # best-model 选择相关的三个字段：让 yaml 的设置真正生效
+        self.load_best_model_at_end = bool(training.get("load_best_model_at_end", False))
+        self.metric_for_best_model = training.get("metric_for_best_model", None)
+        self.greater_is_better = training.get("greater_is_better", None)
 
 
 def resolve_path(value):
@@ -238,6 +242,9 @@ def create_trainer(model, tokenizer, train_dataset, eval_dataset, config, output
         save_strategy="no" if benchmark else config.save_strategy,
         eval_strategy="no" if benchmark else config.eval_strategy,
         save_total_limit=config.save_total_limit,
+        load_best_model_at_end=config.load_best_model_at_end,
+        metric_for_best_model=config.metric_for_best_model,
+        greater_is_better=config.greater_is_better,
         fp16=config.fp16,
         bf16=config.bf16,
         optim=config.optim,
