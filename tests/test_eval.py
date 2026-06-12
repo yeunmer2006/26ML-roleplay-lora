@@ -270,6 +270,105 @@ def test_perplexity_masks_prompt_tokens():
     assert result["supervised_tokens"] == 2
 
 
+def test_perplexity_truncation_preserves_card_and_reference():
+    import torch
+
+    class Tokenizer:
+        def __init__(self):
+            self.seen = []
+
+        def apply_chat_template(
+            self,
+            messages,
+            tokenize=True,
+            add_generation_prompt=False,
+        ):
+            self.seen.append([dict(message) for message in messages])
+            ids = []
+            for message in messages:
+                ids.append({"system": 1, "user": 2, "assistant": 3}[message["role"]])
+                ids.extend(ord(char) for char in message["content"])
+            if add_generation_prompt:
+                ids.append(3)
+            return ids
+
+    class Output:
+        loss = torch.tensor(0.5)
+
+    class Model:
+        def __init__(self):
+            self.weight = torch.nn.Parameter(torch.tensor(1.0))
+            self.labels = None
+
+        def parameters(self):
+            return iter([self.weight])
+
+        def __call__(self, **kwargs):
+            self.labels = kwargs["labels"].tolist()[0]
+            return Output()
+
+    tokenizer = Tokenizer()
+    model = Model()
+    context = [
+        {"role": "system", "content": "CARD"},
+        {"role": "user", "content": "old"},
+        {"role": "assistant", "content": "old-answer"},
+        {"role": "user", "content": "new"},
+    ]
+    result = assistant_perplexity(
+        model,
+        tokenizer,
+        context,
+        "REFERENCE",
+        max_length=16,
+    )
+
+    scored_messages = tokenizer.seen[-1]
+    assert scored_messages[0] == {"role": "system", "content": "CARD"}
+    assert scored_messages[-1] == {
+        "role": "assistant",
+        "content": "REFERENCE",
+    }
+    assert {"role": "user", "content": "old"} not in scored_messages
+    assert result["supervised_tokens"] == len("REFERENCE")
+
+
+def test_perplexity_supports_reference_without_prompt():
+    import torch
+
+    class Tokenizer:
+        def apply_chat_template(self, messages, **kwargs):
+            assert messages
+            return [1, 2, 3]
+
+    class Output:
+        loss = torch.tensor(0.5)
+
+    class Model:
+        def __init__(self):
+            self.weight = torch.nn.Parameter(torch.tensor(1.0))
+            self.labels = None
+
+        def parameters(self):
+            return iter([self.weight])
+
+        def __call__(self, **kwargs):
+            self.labels = kwargs["labels"].tolist()[0]
+            return Output()
+
+    model = Model()
+    result = assistant_perplexity(
+        model,
+        Tokenizer(),
+        [],
+        "reference",
+        max_length=1,
+    )
+
+    assert model.labels == [1, 2, 3]
+    assert result["supervised_tokens"] == 3
+
+
 def test_multi_turn_passes_complete_history(monkeypatch, tmp_path):
     observed = []
 

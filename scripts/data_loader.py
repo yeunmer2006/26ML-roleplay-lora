@@ -209,12 +209,43 @@ def _template_ids(tokenizer, messages, add_generation_prompt=False):
     return encoded
 
 
+def truncate_messages(messages, tokenizer, max_length):
+    """保留 system 和最近消息，按聊天模板的实际 token 长度裁剪。
+
+    max_length 是软预算。如果完整 system 与最后一条 assistant 消息已经超出
+    预算，仍完整保留二者，避免角色卡或监督回复被 token 级截断。
+    """
+    if not messages:
+        return []
+
+    system = messages[:1] if messages[0]["role"] == "system" else []
+    dialogue = messages[len(system):]
+    last_assistant = next(
+        (
+            index
+            for index in range(len(dialogue) - 1, -1, -1)
+            if dialogue[index]["role"] == "assistant"
+        ),
+        None,
+    )
+    if last_assistant is None:
+        return system
+
+    dialogue = dialogue[:last_assistant + 1]
+    for start in range(len(dialogue)):
+        candidate = system + dialogue[start:]
+        if len(_template_ids(tokenizer, candidate)) <= max_length:
+            return candidate
+
+    return system + [dialogue[-1]]
+
+
 def encode_conversation(example, tokenizer, max_length: int = 512):
     """编码对话，并只对 assistant token 计算训练损失。
 
-    对超长样本从左侧截断，以保留最后几轮及最终 assistant 回复。
+    对超长样本保留完整角色卡，并按消息边界删除最旧对话。
     """
-    messages = build_messages(example)
+    messages = truncate_messages(build_messages(example), tokenizer, max_length)
     if not messages:
         return {"input_ids": [], "attention_mask": [], "labels": [], "length": 0}
 
@@ -223,6 +254,10 @@ def encode_conversation(example, tokenizer, max_length: int = 512):
 
     for index, message in enumerate(messages):
         if message["role"] != "assistant":
+            continue
+        if index == 0:
+            end = len(_template_ids(tokenizer, messages[:1]))
+            labels[:end] = input_ids[:end]
             continue
         prefix_ids = _template_ids(
             tokenizer,
@@ -235,10 +270,6 @@ def encode_conversation(example, tokenizer, max_length: int = 512):
         if through_assistant_ids[:start] != prefix_ids:
             raise ValueError("聊天模板前缀不稳定，无法可靠生成 assistant labels")
         labels[start:end] = input_ids[start:end]
-
-    if len(input_ids) > max_length:
-        input_ids = input_ids[-max_length:]
-        labels = labels[-max_length:]
 
     attention_mask = [1] * len(input_ids)
     return {

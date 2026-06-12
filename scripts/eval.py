@@ -23,7 +23,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.data_loader import build_messages, load_local_dataset
+from scripts.data_loader import build_messages, load_local_dataset, truncate_messages
 
 
 SYSTEMS = ("base_no_card", "base_with_card", "lora_with_card")
@@ -278,16 +278,26 @@ def _template_ids(tokenizer, messages, add_generation_prompt=False):
 
 
 def assistant_perplexity(model, tokenizer, context, reference, max_length=1024):
-    prompt_ids = _template_ids(tokenizer, context, add_generation_prompt=True)
     full_messages = context + [{"role": "assistant", "content": reference}]
+    full_messages = truncate_messages(full_messages, tokenizer, max_length)
+    if not full_messages or full_messages[-1]["role"] != "assistant":
+        return None
+
+    prompt_messages = full_messages[:-1]
+    prompt_ids = (
+        _template_ids(
+            tokenizer,
+            prompt_messages,
+            add_generation_prompt=True,
+        )
+        if prompt_messages
+        else []
+    )
     full_ids = _template_ids(tokenizer, full_messages)
     if full_ids[:len(prompt_ids)] != prompt_ids:
         raise ValueError("Chat template prefix changed while scoring reference")
 
     labels = [-100] * len(prompt_ids) + full_ids[len(prompt_ids):]
-    if len(full_ids) > max_length:
-        full_ids = full_ids[-max_length:]
-        labels = labels[-max_length:]
     supervised = sum(label != -100 for label in labels)
     if supervised == 0:
         return None
