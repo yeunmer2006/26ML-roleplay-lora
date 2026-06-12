@@ -105,7 +105,7 @@ class TestModelConfig:
         # 由于 train.py 的 Config 类主要服务于训练，
         # 推理配置通过 InferenceConfig 读取，这里验证配置文件本身
         import yaml
-        with open(project_root / "configs" / "lora_config.yaml", "r") as f:
+        with open(project_root / "configs" / "lora_config.yaml", "r", encoding="utf-8") as f:
             full_config = yaml.safe_load(f)
 
         assert "inference" in full_config

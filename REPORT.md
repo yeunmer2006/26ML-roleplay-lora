@@ -1,326 +1,535 @@
-# Role-Play Dialogue Generation via LoRA Fine-Tuning of Small Language Models
+# 当前项目架构报告
 
-**Authors:** Liu Yihan, Liao Xucheng, Long Hongtan
+## 1. 报告目的
 
----
+本文档面向项目组内部，说明当前仓库已经实现的训练、推理、评测与资源管理架构，重点回答以下问题：
 
-## Abstract
+1. 当前 LoRA 微调是否采用单一 adapter 架构
+2. 角色设定是在训练阶段固化，还是在推理阶段通过角色卡注入
+3. 当前系统的数据流、模块边界和主要限制是什么
 
-Large language models (LLMs) excel in open-domain conversation but often lack character consistency in role-play scenarios, where models must maintain a specific persona throughout multi-turn dialogues. This project explores efficient fine-tuning of small open-source LLMs (Qwen2.5-3B-Instruct, 3B parameters) using LoRA (Low-Rank Adaptation) to achieve stable role-play capabilities. Our method enables training on consumer-grade GPUs (RTX 4060 8GB) within one hour while maintaining character identity across conversations. We evaluate our approach using perplexity, role-play fidelity, and response diversity metrics. Experiments on the PIPPA-ShareGPT-formatted dataset (~16,000 samples) demonstrate that LoRA fine-tuning with 4-bit quantization successfully adapts the model for character-consistent dialogue generation.
-
-**Keywords:** LoRA, Low-Rank Adaptation, Role-Play Dialogue, LLM Fine-Tuning, Parameter-Efficient Training
-
----
-
-## 1. Introduction
-
-Large language models have demonstrated remarkable capabilities in natural language understanding and generation. However, when deployed for role-play scenarios—where the model must consistently embody a specific character with defined persona, background, and speaking style—generic models often fail to maintain character consistency, breaking the immersion for users.
-
-This project addresses the challenge of enabling consistent character role-play on resource-constrained hardware. We employ **LoRA (Low-Rank Adaptation)**, a parameter-efficient fine-tuning technique that freezes pretrained weights and trains only low-rank decomposition matrices, dramatically reducing computational and memory requirements.
-
-### 1.1 Contributions
-
-Our main contributions are:
-
-1. We implement and validate a complete pipeline for role-play dialogue generation using LoRA fine-tuning on Qwen2.5-3B-Instruct
-2. We demonstrate that training is feasible on consumer-grade GPUs (RTX 4060 8GB) within one hour
-3. We provide a comprehensive evaluation framework with metrics for role-play fidelity, perplexity, and response diversity
-4. We open-source the complete codebase including training, inference, and evaluation scripts
+本报告基于当前仓库代码实现整理，而不是基于最初设想或课程提案。
 
 ---
 
-## 2. Related Work
+## 2. 总体结论
 
-### 2.1 Role-Play Dialogue Systems
+### 2.1 架构结论
 
-Role-play dialogue systems aim to generate character-consistent responses in multi-turn conversations. Early approaches relied on prompting engineering with character descriptions (Park et al., 2023), but these methods often struggle with maintaining consistency across long conversations.
+当前项目采用的是：
 
-### 2.2 Parameter-Efficient Fine-Tuning
+- 一个基础模型：`Qwen/Qwen2.5-3B-Instruct`
+- 一次训练产出一个 LoRA adapter 目录
+- 推理时加载“基础模型 + 单个 LoRA adapter”
+- 同时可叠加一个角色卡，作为 system prompt 注入
 
-LoRA (Hu et al., 2022) introduced the concept of low-rank adaptation for large language models, significantly reducing trainable parameters compared to full fine-tuning. QLoRA (Dettmers et al., 2023) further extended this by combining LoRA with 4-bit quantization, enabling fine-tuning of large models on limited hardware.
+因此，**当前实现是单一 adapter 架构，不是多 adapter 路由，也不是 adapter fusion，更不是一个进程内同时管理多个角色 adapter 的架构。**
 
-### 2.3 Datasets for Role-Play
+### 2.2 角色能力来源
 
-The PIPPA dataset (Peyton et al., 2024) provides ~16,000 role-play dialogues with character descriptions and multi-turn conversations. The ShareGPT-formatted version enables direct use with popular fine-tuning frameworks.
+当前角色扮演能力来自两个层次：
 
----
+1. **LoRA adapter**
+   负责把基础模型整体调整到更适合角色扮演对话的分布。
+2. **角色卡**
+   在推理时以 system prompt 形式注入具体 persona、背景、说话风格等设定。
 
-## 3. Methodology
+换句话说，当前系统不是“每个角色一个独立 LoRA adapter”的方案，而是更接近：
 
-### 3.1 Base Model Selection
-
-We select **Qwen2.5-3B-Instruct** as our base model for the following reasons:
-
-| Model | Parameters | Advantage |
-|-------|------------|-----------|
-| **Qwen2.5-3B-Instruct** | 3B | Best balance of performance and efficiency |
-| Qwen2.5-1.5B-Instruct | 1.5B | Lower memory requirements |
-| Llama-3.2-3B-Instruct | 3B | Alternative option |
-
-The 3B parameter count can be fully loaded on RTX 4060 8GB with 4-bit quantization, while providing sufficient capacity for character role-play tasks.
-
-### 3.2 LoRA Fine-Tuning
-
-Given a pretrained weight matrix $W_0 \in \mathbb{R}^{d \times k}$, LoRA freeze $W_0$ and represent the weight update as:
-
-$$W = W_0 + \Delta W = W_0 + BA$$
-
-where $B \in \mathbb{R}^{d \times r}$ and $A \in \mathbb{R}^{r \times k}$ with rank $r \ll \min(d, k)$.
-
-**Trainable Parameter Comparison:**
-
-| Method | Trainable Parameters | Memory Usage |
-|--------|--------------------:|-------------:|
-| Full Fine-tuning | 3B | ~24GB |
-| LoRA (r=8) | ~8M | ~6GB |
-| LoRA (r=16) | ~16M | ~8GB |
-
-### 3.3 4-bit Quantization
-
-We apply QLoRA-style 4-bit quantization using BitsAndBytes:
-
-```python
-quantization_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_compute_dtype=torch.float16,
-    bnb_4bit_use_double_quant=True,
-    bnb_4bit_quant_type="nf4"
-)
-```
-
-### 3.4 Training Configuration
-
-**LoRA Parameters:**
-```yaml
-lora:
-  r: 16                      # Rank dimension
-  lora_alpha: 32             # Scaling factor (2*r)
-  target_modules:            # Target layers
-    - "q_proj"
-    - "k_proj"
-    - "v_proj"
-    - "o_proj"
-  lora_dropout: 0.05         # Dropout for regularization
-  bias: "none"               # Do not train bias terms
-```
-
-**Training Strategy:**
-- Gradient Checkpointing: Enabled (~30% memory savings)
-- Mixed Precision (FP16): Accelerated training
-- Learning Rate Scheduler: Cosine Annealing with 10% warmup
-- Optimizer: paged_adamw_8bit (memory-efficient)
+**一个通用角色扮演 LoRA + 多个可切换角色卡**
 
 ---
 
-## 4. Dataset
+## 3. 架构总览
 
-### 4.1 PIPPA-ShareGPT Dataset
+### 3.1 逻辑分层
 
-We use the PIPPA-ShareGPT-formatted dataset from HuggingFace:
+当前代码可以分成五层：
 
-| Statistic | Value |
-|-----------|------:|
-| Total Samples | ~16,000 |
-| Format | PIPPA-ShareGPT |
-| Character Coverage | Novels, Games, Movies, etc. |
+1. 资源准备层
+   - 负责检查本地模型和数据是否完整
+   - 必要时自动下载模型和数据
 
-### 4.2 Data Format
+2. 数据处理层
+   - 清洗 PIPPA 数据集
+   - 划分 train/val/test
+   - 转成 Hugging Face chat template 可训练格式
 
-Each sample contains:
-- `bot`: Character description (name, persona, background, speaking style)
-- `conversations`: Multi-turn dialogue (human/gpt alternating)
+3. 训练层
+   - 加载 Qwen2.5-3B-Instruct
+   - 使用 4-bit 量化和 LoRA 进行 QLoRA 训练
+   - 输出 adapter 权重和训练 manifest
 
-### 4.3 Data Split
+4. 推理层
+   - 加载基础模型
+   - 可选加载单个 LoRA adapter
+   - 加载角色卡并拼成 system prompt
+   - 进行交互式或批量推理
 
-| Split | Ratio | Count |
-|-------|------:|------:|
-| Training | 90% | ~14,400 |
-| Validation | 10% | ~1,600 |
+5. 评测层
+   - 比较三种系统：
+     - Base, no card
+     - Base + card
+     - LoRA + card
+   - 输出自动指标、LLM judge 指标和 Markdown 报告
 
----
+### 3.2 目录与职责
 
-## 5. Evaluation Metrics
-
-### 5.1 Perplexity
-
-Perplexity measures the model's ability to predict text:
-
-$$PPL = \exp\left(-\frac{1}{N} \sum_{i=1}^{N} \log P(x_i | x_{<i})\right)$$
-
-Lower perplexity indicates better language modeling capability.
-
-### 5.2 Role-Play Fidelity
-
-Role-play fidelity measures the alignment between generated responses and character descriptions:
-
-1. Extract keywords from character description
-2. Detect character-specific vocabulary in responses
-3. Compute consistency score (0-1)
-
-### 5.3 Response Diversity
-
-Diversity is computed based on unique n-gram ratio:
-
-$$Diversity = \frac{|unique\_ngrams|}{|total\_ngrams|}$$
-
-Higher diversity indicates more varied and creative responses.
-
-### 5.4 Response Length Statistics
-
-We also report mean, median, min, max, and standard deviation of response lengths.
+| 路径 | 作用 |
+|---|---|
+| `scripts/resource_manager.py` | 模型与数据资源解析、校验、下载 |
+| `scripts/data_loader.py` | 数据清洗、切分、编码 |
+| `scripts/train.py` | QLoRA 训练主入口 |
+| `scripts/inference.py` | 推理主入口 |
+| `scripts/eval.py` | 三路对比评测 |
+| `scripts/prepare_training.sh` | 训练前环境与资源准备 |
+| `scripts/run_training.sh` | 冒烟训练与正式训练封装 |
+| `configs/train_4060.yaml` | 当前正式训练配置 |
+| `configs/train_smoke.yaml` | 冒烟配置 |
+| `configs/lora_config.yaml` | 推理默认配置 |
+| `configs/character_cards/*.json` | 角色卡 |
 
 ---
 
-## 6. Experimental Setup
+## 4. 训练架构
 
-### 6.1 Configuration Comparison
+### 4.1 基础模型
 
-| Parameter | Local (RTX 4060) | Colab (T4) | Test Config |
-|-----------|:-----------------:|:----------:|:-----------:|
-| max_seq_length | 1024 | 2048 | 256 |
-| batch_size | 1 | 4 | 2 |
-| gradient_accumulation | 16 | 4 | 8 |
-| LoRA r | 16 | 32 | 8 |
-| epochs | 3 | 3 | 1 |
-| Est. Time | ~30-60 min | ~30 min | ~5-10 min |
+训练脚本 `scripts/train.py` 默认加载：
 
-### 6.2 Hardware
+- `Qwen/Qwen2.5-3B-Instruct`
 
-- **Local**: NVIDIA RTX 4060 8GB
-- **Remote**: Google Colab T4 GPU (15GB)
+模型路径可以来自：
 
----
+- 命令行 `--model_path`
+- 环境变量 `MODEL_DIR`
+- Hugging Face 模型 ID
 
-## 7. Results
+资源管理器会优先复用本地目录，不完整时再触发下载。
 
-### 7.1 Training Efficiency
+### 4.2 QLoRA 方案
 
-| Configuration | Epochs | Actual Time | GPU Memory |
-|---------------|:------:|------------:|:----------:|
-| Test Config | 1 | ~5-10 min | ~6GB |
-| Local Config | 3 | ~30-60 min | ~7GB |
+当前训练采用标准 QLoRA 思路：
 
-### 7.2 Evaluation Results
+- 4-bit 量化加载基础模型
+- 基础模型参数冻结
+- 通过 PEFT 在指定 attention 投影层上插入 LoRA
 
-> Results to be filled after training completion
+当前默认 target modules 为：
 
-| Metric | Value |
-|--------|------:|
-| Perplexity | TBD |
-| Role-Play Fidelity | TBD |
-| Diversity | TBD |
+- `q_proj`
+- `k_proj`
+- `v_proj`
+- `o_proj`
 
-### 7.3 Sample Outputs
+`configs/train_4060.yaml` 中的正式训练 LoRA 参数为：
 
-> Sample conversations to be added after training
+- `r: 8`
+- `lora_alpha: 16`
+- `lora_dropout: 0.05`
+- `bias: none`
 
----
+### 4.3 单 adapter 训练产物
 
-## 8. Project Structure
+训练完成后，脚本会把结果保存到：
 
-```
-project/
-├── configs/
-│   ├── lora_config.yaml              # Default config
-│   ├── lora_config_local.yaml        # RTX 4060
-│   ├── lora_config_colab.yaml        # Google Colab
-│   ├── lora_config_test.yaml        # Quick test
-│   └── character_cards/             # Character cards
-├── scripts/
-│   ├── data_loader.py               # Data download & cleaning
-│   ├── train.py                     # Training script
-│   ├── inference.py                 # Inference script
-│   └── eval.py                      # Evaluation script
-├── tests/                           # Unit tests
-├── notebooks/                       # Colab notebooks
-├── processed/                       # Cleaned data
-├── output/lora_roleplay/            # Training output
-│   └── final_model/                 # LoRA weights
-└── requirements.txt
-```
+- `output/experiments/<run_name>/final_model`
 
----
+这里保存的是：
 
-## 9. Usage Guide
+- LoRA adapter 权重
+- tokenizer 配置
 
-### 9.1 Environment Setup
+不是完整重训后的全量模型副本。
 
-```bash
-conda create -n ml_roleplay python=3.10
-conda activate ml_roleplay
-pip install -r requirements.txt
-```
+这说明当前训练产物的组织方式是：
 
-### 9.2 Training
+- **一次 run 对应一个 adapter 目录**
+- **一次推理最多加载一个 adapter 目录**
 
-```bash
-# Quick test (recommended first)
-python scripts/train.py --config configs/lora_config_test.yaml
+没有看到以下能力：
 
-# Full training on RTX 4060
-python scripts/train.py --config configs/lora_config_local.yaml
-```
+- 同时加载多个 adapter
+- 在运行时切换多个已注册 adapter
+- adapter fusion / merge
+- 基于角色 ID 自动匹配对应 adapter
 
-### 9.3 Inference
+因此，从训练产物设计上也可以确认：**当前是单 adapter 架构。**
 
-```bash
-# Interactive dialogue
-MODEL_DIR=/path/to/Qwen2.5-3B-Instruct \
-python scripts/inference.py --adapter output/lora_roleplay/final_model
+### 4.4 训练配置与资源约束
 
-# Specify character card
-python scripts/inference.py --adapter output/lora_roleplay/final_model \
-    --character configs/character_cards/alina.json
-```
+正式训练配置面向 RTX 4060 8GB，主要特征是：
 
-### 9.4 Evaluation
+- `max_seq_length: 512`
+- `per_device_train_batch_size: 1`
+- `gradient_accumulation_steps: 8`
+- `gradient_checkpointing: true`
+- `optim: paged_adamw_8bit`
 
-```bash
-MODEL_DIR=/path/to/Qwen2.5-3B-Instruct \
-ADAPTER_DIR=output/lora_roleplay/final_model \
-python scripts/eval.py compare \
-  --dataset processed \
-  --output_dir output/evaluations/default
-```
+这说明当前系统设计目标明确偏向：
+
+- 单卡消费级 GPU 可训练
+- 优先保证显存可用性
+- 牺牲吞吐，换取训练可落地
+
+### 4.5 训练数据监督方式
+
+`scripts/data_loader.py` 中的 `encode_conversation()` 只对 assistant token 计算 loss：
+
+- system 和 user 内容作为上下文输入
+- assistant 回复作为监督目标
+
+这属于标准的监督微调 SFT 形式，适用于多轮对话建模。
 
 ---
 
-## 10. Future Work
+## 5. 数据架构
 
-### 10.1 Model Improvements
+### 5.1 数据来源
 
-- **Larger Models**: Experiment with Qwen2.5-7B or Llama-3.1-8B (requires more memory)
-- **Multi-Character Training**: Train on multiple characters simultaneously
-- **Ablation Studies**: Analyze the impact of LoRA rank, learning rate, and epochs
+当前默认数据集是：
 
-### 10.2 Application Extensions
+- `KaraKaraWitch/PIPPA-ShareGPT-formatted`
 
-- **Character Switching**: Single model supporting multiple characters
-- **Streaming Output**: Typing effect for real-time generation
-- **Web UI**: Gradio/Streamlit-based visualization interface
+### 5.2 数据清洗逻辑
 
-### 10.3 Evaluation Enhancements
+数据加载脚本会过滤掉以下样本：
 
-- **Human Evaluation**: Design character consistency rating questionnaires
-- **LLM-as-Judge**: Use larger LLMs to evaluate role-play fidelity
-- **BLEU/ROUGE**: Compare with traditional text generation metrics
+- 没有 bot 描述且没有 system 信息
+- 没有完整 user/assistant 对话
+- 总长度过长
+- 重复样本
+
+### 5.3 数据划分方式
+
+数据切分不是简单随机，而是基于角色分组的 `GroupShuffleSplit`：
+
+- 先按角色维度做 train / holdout
+- 再把 holdout 切成 val / test
+
+这样做的意义是：
+
+- 尽量避免同一角色同时出现在训练集和测试集
+- 让评测更接近“泛化到新角色”的场景
+
+这也是当前架构里非常关键的一点。因为系统目标并不是记住某一个固定角色，而是学习“角色扮演对话模式”。
+
+### 5.4 本地数据形态
+
+处理后的数据写入：
+
+- `processed/train.jsonl`
+- `processed/val.jsonl`
+- `processed/test.jsonl`
+
+并附带：
+
+- `processed/dataset_manifest.json`
+
+manifest 用于记录 split 行数和哈希，便于实验复现。
 
 ---
 
-## 11. Conclusion
+## 6. 推理架构
 
-We demonstrate that LoRA fine-tuning with 4-bit quantization enables effective role-play dialogue generation on consumer-grade GPUs. The proposed pipeline successfully adapts Qwen2.5-3B-Instruct for character-consistent responses while maintaining training time under one hour on RTX 4060. Future work includes larger models, comprehensive evaluations, and application extensions.
+### 6.1 推理加载路径
+
+`scripts/inference.py` 的核心流程是：
+
+1. 加载基础模型
+2. 如果提供 adapter 目录，则调用 `PeftModel.from_pretrained()` 加载该 adapter
+3. 读取角色卡 JSON
+4. 把角色卡转成文本描述
+5. 作为 `system` 消息，与用户输入一起送入 chat template
+
+因此，当前推理依赖两类输入：
+
+- 模型侧输入：base model，外加可选 LoRA adapter
+- 提示侧输入：character card
+
+### 6.2 当前不是“每角色一个 adapter”
+
+这部分是本项目最容易被误解的地方。
+
+虽然项目里有多个角色卡文件，例如：
+
+- `alina.json`
+- `gandalf.json`
+- `harry_potter.json`
+- `hermione.json`
+- `luoji.json`
+
+但这些角色卡只在推理时作为 prompt 使用，并不对应独立 adapter 文件。
+
+也就是说，当前仓库并没有实现这种结构：
+
+- `adapter_alina`
+- `adapter_gandalf`
+- `adapter_harry`
+
+然后根据用户选择切换不同 adapter。
+
+当前实际结构是：
+
+- 一个 LoRA adapter 学“如何更像角色扮演模型”
+- 多个角色卡定义“当前扮演谁”
+
+### 6.3 对话状态管理现状
+
+`interactive_chat()` 中虽然维护了 `conversation_history`，但 `chat()` 实际每次只接收：
+
+- 当前角色卡
+- 当前单轮 user_input
+
+没有真正把完整多轮历史重新送回生成函数。
+
+这意味着当前交互式推理在实现上更接近：
+
+- **单轮角色扮演问答**
+
+而不是严格意义上的：
+
+- **带长期上下文记忆的多轮会话系统**
+
+这点和评测脚本中的 multi-turn challenge 是有差异的。评测脚本会显式维护 `history`，而普通交互推理脚本当前没有完整复用历史。
+
+### 6.4 推理生成策略
+
+默认推理参数在 `configs/lora_config.yaml` 中，包括：
+
+- `max_new_tokens`
+- `temperature`
+- `top_p`
+- `repetition_penalty`
+
+这部分是典型的采样式生成配置，没有引入检索、工具调用、函数调用或外部记忆模块。
 
 ---
 
-## References
+## 7. 评测架构
 
-[1] Hu, E. J., Shen, Y., Wallis, P., et al. "LoRA: Low-Rank Adaptation of Large Language Models." ICLR 2022.
+### 7.1 三路对比设计
 
-[2] Qwen Team. "Qwen2.5 Technical Report." 2024.
+`scripts/eval.py compare` 明确比较三种系统：
 
-[3] Peyton, M., et al. "PIPPA: A Large-Scale Role-Playing Dialogue Dataset." 2024.
+1. `base_no_card`
+   - 只有基础模型
+   - 不加角色卡
 
-[4] Dettmers, T., Pagnoni, A., Holtzman, A., & Zettlemoyer, L. "QLoRA: Efficient Finetuning of Quantized LLMs." NeurIPS 2023.
+2. `base_with_card`
+   - 基础模型
+   - 加角色卡
 
-[5] Park, J., et al. "Generating Character-Consistent Dialogue with Persona Description." 2023.
+3. `lora_with_card`
+   - 基础模型
+   - 加 LoRA adapter
+   - 加角色卡
+
+这个设计非常重要，因为它把能力增益拆成两部分：
+
+- 角色卡 prompt 本身带来的增益
+- LoRA 微调在角色卡基础上继续带来的增益
+
+### 7.2 自动指标
+
+当前评测实现了以下自动指标：
+
+- assistant perplexity
+- Distinct-1 / Distinct-2
+- repetition rate
+- 响应长度
+- tokens per second
+- peak GPU memory
+- empty/refusal rate
+
+### 7.3 LLM Judge 评估
+
+如果提供：
+
+- `JUDGE_API_KEY`
+- `JUDGE_BASE_URL`
+- `JUDGE_MODEL`
+
+评测脚本还会对匿名化候选答案进行打分，分别衡量：
+
+- 单轮：role identity、style、relevance、naturalness、immersion
+- 多轮：role identity、memory、coherence、style、immersion
+
+这说明当前评测架构已经不是简单看 loss，而是显式围绕“角色一致性”展开。
+
+---
+
+## 8. 资源管理与可复现性设计
+
+### 8.1 资源解析
+
+`scripts/resource_manager.py` 负责：
+
+- 检查本地模型目录是否完整
+- 检查 tokenizer、config 和所有权重分片
+- 检查 `processed/` 下 train/val/test 是否完整
+- 不完整时自动下载和重建
+
+### 8.2 manifest 机制
+
+项目中已经有两类 manifest：
+
+1. 数据 manifest
+   - 记录数据 split 和 sha256
+
+2. 训练 run manifest
+   - 记录 git commit
+   - Python / Torch / CUDA
+   - GPU 信息
+   - 配置内容
+   - 数据文件 sha256
+
+这说明当前系统已经具备基础的实验可追踪能力。
+
+---
+
+## 9. 当前架构的优点
+
+### 9.1 工程上简单清晰
+
+当前架构是“单 base model + 单 adapter + 多角色卡”，优点是：
+
+- 训练、推理、评测路径统一
+- 不需要维护大量角色专属权重
+- adapter 文件体积小，便于保存和迁移
+- 角色切换成本低，只需要替换角色卡
+
+### 9.2 硬件成本低
+
+通过 4-bit + LoRA，项目可以在 RTX 4060 8GB 上完成训练，这对课程项目和原型验证非常重要。
+
+### 9.3 评测设计较完整
+
+三路对比架构让我们能够回答更具体的问题：
+
+- 角色卡是否已经足够
+- LoRA 是否真的带来额外收益
+- 多轮一致性是否有提升
+
+---
+
+## 10. 当前架构的限制
+
+### 10.1 不是多 adapter 架构
+
+当前系统不能：
+
+- 为不同角色分别训练和加载不同 adapter
+- 在运行时动态切换多个 adapter
+- 把多个 adapter 组合或融合
+
+因此，如果未来目标变成“高保真复刻多个具体 IP 角色”，当前架构可能不够细粒度。
+
+### 10.2 角色卡与 LoRA 职责耦合不够清晰
+
+当前 LoRA 是在多角色角色扮演数据上训练出来的，角色卡又在推理阶段再次定义 persona。这样虽然实用，但也带来一个问题：
+
+- LoRA 学到的是通用角色扮演风格增强
+- 具体角色身份主要仍然由 prompt 决定
+
+因此它更像“role-play capability adapter”，而不是“character identity adapter”。
+
+### 10.3 交互式推理没有完整多轮记忆
+
+当前 `scripts/inference.py` 的交互模式没有真正把完整历史传给生成函数，所以用户体验上可能会误以为系统支持连续多轮记忆，但实现上并不完整。
+
+### 10.4 配置文件存在历史遗留
+
+仓库中有一部分文档和配置还保留较早期设想，例如：
+
+- `configs/lora_config.yaml` 中仍带有较旧的训练字段
+- 现有 README / 旧报告对目录与配置的描述并不完全等同于当前实现
+
+因此，项目对外说明时应优先以代码入口为准。
+
+---
+
+## 11. 回答核心问题：LoRA 微调是否是单一 adapter
+
+答案是：**是，当前实现是单一 adapter 架构。**
+
+证据有三层：
+
+1. 训练脚本 `scripts/train.py`
+   - 一次训练只构造一个 `LoraConfig`
+   - 一次训练只输出一个 `final_model` adapter 目录
+
+2. 推理脚本 `scripts/inference.py`
+   - 只接收一个 `--adapter`
+   - 只调用一次 `PeftModel.from_pretrained()`
+
+3. 评测脚本 `scripts/eval.py`
+   - 也只比较一个 adapter 路径对应的 `lora_with_card`
+
+因此，当前系统不是：
+
+- 多 adapter 并行
+- 角色专属 adapter 集合
+- adapter router
+- mixture-of-adapters
+
+而是：
+
+**单一 LoRA adapter + 可切换角色卡**
+
+---
+
+## 12. 如果后续要升级，建议的演进方向
+
+### 12.1 方向一：保持单 adapter，但强化推理层
+
+适合当前项目阶段，成本最低。可以优先做：
+
+- 修复交互式推理中的多轮历史传递
+- 统一训练与推理的 chat template 格式
+- 增强角色卡模板字段与示例对话利用率
+
+这条路线下，LoRA 仍然作为通用角色扮演增强器存在。
+
+### 12.2 方向二：扩展为多角色 adapter 架构
+
+如果未来要面向“少量角色，但要求高拟合度”，可以改成：
+
+- 每个角色单独训练一个 adapter
+- 推理时根据角色选择对应 adapter
+
+这种架构的优点是角色保真度更高，缺点是：
+
+- 训练与存储成本上升
+- 角色数量增加后管理复杂
+- 评测矩阵会迅速变大
+
+### 12.3 方向三：通用 adapter + 角色检索/记忆
+
+如果未来目标是“大量角色、动态切换”，可以考虑：
+
+- 继续保留单一通用 LoRA
+- 外挂角色知识库或检索模块
+- 把角色卡扩展成结构化 persona memory
+
+这会比“每个角色一个 adapter”更容易扩展。
+
+---
+
+## 13. 最终结论
+
+当前仓库已经形成一条完整、可运行的原型链路：
+
+- 资源准备
+- 数据清洗与切分
+- QLoRA 训练
+- 单 adapter 推理
+- 三路对比评测
+
+从代码事实看，项目当前的核心架构应准确描述为：
+
+**基于 Qwen2.5-3B-Instruct 的单 LoRA adapter 角色扮演系统，使用多角色数据进行通用 role-play 能力微调，并在推理阶段通过角色卡注入具体 persona。**
+
+所以，对“LoRA 微调是否是单一 adapter”的回答应当明确写成：
+
+**是。当前是单一 adapter，不是多 adapter。角色切换主要依赖角色卡，而不是切换不同的 LoRA 权重。**
