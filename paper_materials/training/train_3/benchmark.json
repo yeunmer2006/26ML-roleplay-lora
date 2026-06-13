@@ -1,0 +1,9 @@
+{
+  "benchmark_steps": 50,
+  "seconds_per_step": 6.45044798091054,
+  "estimated_optimizer_steps": 500,
+  "estimated_train_seconds": 3225.22399045527,
+  "estimated_train_minutes": 53.7537331742545,
+  "limit_minutes": 110.0,
+  "passed": true
+}

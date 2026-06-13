@@ -1,0 +1,20 @@
+{
+  "created_at": "2026-06-13T10:34:09+0800",
+  "base_model": "/root/autodl-tmp/Qwen2.5-3B-Instruct",
+  "adapter": "output/experiments/train_3/final_model",
+  "dataset": "processed",
+  "safety_rules": "configs/eval_safety_terms.json",
+  "seed": 42,
+  "single_samples": 100,
+  "multi_samples": 20,
+  "max_new_tokens": 256,
+  "generation": {
+    "do_sample": false
+  },
+  "judge_model": "MiniMax-M3",
+  "systems": {
+    "base_no_card": "Base, no card",
+    "base_with_card": "Base + card",
+    "lora_with_card": "LoRA + card"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "角色名称",
+  "persona": "角色人设描述...",
+  "appearance": "外貌特征描述（可选）",
+  "background": "背景故事...",
+  "speech_style": "说话风格描述，如：温柔、活泼、严谨...",
+  "example_dialogues": [
+    {
+      "user": "用户输入示例",
+      "assistant": "角色回复示例"
+    }
+  ]
+}
