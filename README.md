@@ -237,9 +237,9 @@ python scripts/eval.py compare \
 ```bash
 python scripts/eval.py compare \
   --base_model "${BASE_MODEL}" \
-  --adapter output/experiments/train_3/final_model \
+  --adapter output/experiments/train_4/final_model \
   --dataset processed \
-  --output_dir output/evaluations/train_3 \
+  --output_dir output/evaluations/train_4 \
   --reuse_baseline output/evaluations/train_1
 ```
 
@@ -271,15 +271,92 @@ python scripts/eval.py compare \
 API Key 不直接写入脚本或命令参数。若密钥曾以明文形式保存或提交，应立即
 在服务商控制台撤销并重新生成。
 
+## 后续任务与候选实验
+
+当前四次实验表明：LoRA 的单轮角色表现有改善趋势，但重复率仍高于
+`Base + card`，多轮角色身份、连贯性和风格仍然较弱。下一阶段优先处理数据和
+对话边界，再进行训练配置消融，不建议继续同时修改多个超参数。
+
+### 任务优先级
+
+1. **运行并审查数据清洗（实现已完成）**
+   - 统计重复句、重复 n-gram、近重复回复和角色分布。
+   - 过滤循环表达、通用模板回复、错误叙述视角和低质量样本。
+   - 输出 `processed_clean/train.jsonl` 和 `val.jsonl`；`test.jsonl` 原样复制
+     `processed/test.jsonl`，避免清洗测试集导致实验不可比。
+   - 记录清洗前后数量、规则和数据哈希。
+2. **验证截断后的对话边界（实现已完成）**
+   - 保证裁剪结果除 system 外从 user 开始。
+   - 尽量保留完整的 `user → assistant` 对，避免只剩角色卡和 assistant 独白。
+   - 增加边界情况测试和截断覆盖率统计。
+3. **运行 `train_5` 数据质量消融**
+   - 保持 `train_4` 的模型与训练参数不变，只替换为清洗数据。
+   - 重点比较重复率、Distinct-1/2、多轮综合分和相对 `Base + card` 的配对差值。
+4. **按单变量顺序尝试候选配置**
+   - `train_6`：在 `train_5` 基础上只降低学习率。
+   - `train_7`：在 `train_5` 基础上只提高 LoRA rank。
+   - `train_8`：在 `train_5` 基础上只增加 FFN target modules。
+5. **完善最终评估**
+   - 所有新实验复用相同测试样本和基座回答。
+   - 增加组员盲评、Judge 交换顺序复测和更多多轮挑战。
+   - 同步更新 `paper_materials/`、`REPORT.md` 和 Poster 图表。
+
+### 候选配置
+
+| 配置 | 唯一主要变量 | 依赖 | 状态 |
+|---|---|---|---|
+| `train_5_clean_data.yaml` | 使用清洗数据 | `processed_clean/` | 待生成数据 |
+| `train_6_clean_lr5e5.yaml` | 学习率 `1e-4 → 5e-5` | 完成 `train_5` | 候选 |
+| `train_7_clean_rank16.yaml` | LoRA `r/alpha: 8/16 → 16/32` | 完成 `train_5` | 候选 |
+| `train_8_clean_ffn.yaml` | LoRA 增加 FFN 投影层 | 完成 `train_5` | 候选 |
+
+这些配置位于 `configs/experiments/`。`processed_clean/` 尚未生成，因此不能直接
+开始 `train_5`。先运行清洗脚本：
+
+```bash
+python scripts/clean_training_data.py \
+  --input_dir processed \
+  --output_dir processed_clean
+```
+
+清洗结果和规则统计写入 `processed_clean/cleaning_manifest.json`，测试集会按
+字节原样复制。检查清洗数量和抽样结果后，再运行 50-step benchmark 和正式训练：
+
+```bash
+python scripts/train.py \
+  --config configs/experiments/train_5_clean_data.yaml \
+  --benchmark_steps 50 \
+  --max_runtime_minutes 120 \
+  --output_dir output/experiments/train_5/benchmark
+
+python scripts/train.py \
+  --config configs/experiments/train_5_clean_data.yaml
+```
+
+评估时继续复用 `train_1` 的两组基座结果：
+
+```bash
+python scripts/eval.py compare \
+  --base_model "${BASE_MODEL}" \
+  --adapter output/experiments/train_5/final_model \
+  --dataset processed \
+  --output_dir output/evaluations/train_5 \
+  --reuse_baseline output/evaluations/train_1
+```
+
+训练使用 `processed_clean`，评估仍使用未修改的 `processed/test.jsonl`。这是
+复用 `train_1` 基线并进行严格配对比较的前提。若后续确实修改测试集，应改用
+新评估目录重新生成三组回答，不能使用 `--reuse_baseline`。
+
 ## 项目结构
 
 ```
 project/
 ├── configs/                      # 配置文件
-│   ├── lora_config.yaml          # 推理默认配置
-│   ├── train_4060.yaml          # RTX 4060 训练配置(训练脚本默认)
-│   ├── train_smoke.yaml         # 冒烟测试配置
-│   ├── eval_safety_terms.json   # 评估安全词表
+│   ├── train_4060.yaml           # RTX 4060 默认训练配置
+│   ├── train_smoke.yaml          # 冒烟测试配置
+│   ├── experiments/              # 已完成与候选实验配置
+│   ├── eval_safety_terms.json    # 评估安全词表
 │   └── character_cards/         # 角色卡
 │       ├── alina.json
 │       ├── luoji.json
@@ -308,6 +385,7 @@ project/
 ├── output/
 │   ├── experiments/              # 训练输出
 │   └── evaluations/              # 评估输出
+├── paper_materials/               # 论文、Poster 与实验汇总材料
 ├── data/                         # 原始数据(预留,被 .gitignore 忽略)
 ├── models/                       # 本地模型缓存(被 .gitignore 忽略)
 ├── requirements.txt              # 推理/通用依赖
