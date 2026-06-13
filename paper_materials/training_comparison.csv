@@ -1,0 +1,5 @@
+experiment,context_length,truncation,learning_rate,epochs,warmup_ratio,optimizer_steps,gpu,train_loss,best_eval_loss,train_minutes,train_tokens,data_hash_version
+train_1,512,old_left_truncation,0.0002,1,0.03,500,NVIDIA GeForce RTX 4080 SUPER,2.364,2.394,21.3,1485744,snapshot_A
+train_2,512,preserve_character_card,0.0002,1,0.03,500,NVIDIA GeForce RTX 5060,2.345,,35.9,1446808,snapshot_B
+train_3,1024,preserve_character_card,0.0002,1,0.03,500,NVIDIA vGPU-32GB,2.350,2.278,50.7,1909568,snapshot_C
+train_4,1024,preserve_character_card,0.0001,2,0.05,1000,NVIDIA GeForce RTX 4060 Laptop GPU,2.278,2.359,101.6,3903504,snapshot_A

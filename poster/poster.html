@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoRA Fine-Tuning for Role-Play Dialogue Generation</title>
+<style>
+  @page {
+    size: 800mm 1800mm;
+    margin: 0;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  :root {
+    --navy: #1a3a5c;
+    --gold: #c89518;
+    --green: #2e7d32;
+    --red: #b04020;
+    --blue: #4a7a9a;
+    --light-blue: #eef3f8;
+    --line: #c8d2dc;
+    --text: #263238;
+    --muted: #607080;
+  }
+
+  html,
+  body {
+    width: 800mm;
+    height: 1800mm;
+    background: #fff;
+  }
+
+  body {
+    display: grid;
+    grid-template-rows: 116mm 1584mm 100mm;
+    overflow: hidden;
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 9mm 18mm 8mm;
+    color: #fff;
+    background: var(--navy);
+    border-bottom: 4px solid var(--gold);
+  }
+
+  .header h1 {
+    font-size: 22mm;
+    line-height: 1.05;
+    letter-spacing: -0.35mm;
+    text-align: center;
+  }
+
+  .subtitle {
+    margin-top: 4mm;
+    color: #f1cf67;
+    font-size: 10.5mm;
+    text-align: center;
+  }
+
+  .authors {
+    margin-top: 5mm;
+    color: #e1ebf4;
+    font-size: 7.5mm;
+    text-align: center;
+  }
+
+  .affiliation {
+    margin-top: 2mm;
+    color: #adc3d8;
+    font-size: 6mm;
+    text-align: center;
+  }
+
+  main {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    min-height: 0;
+  }
+
+  .column {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1.5px solid var(--gold);
+  }
+
+  .column:last-child {
+    border-right: 0;
+  }
+
+  .section {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5mm 7mm 4mm;
+    border-bottom: 1px solid #d8dee4;
+    break-inside: avoid;
+  }
+
+  .section.grow {
+    flex-grow: 1;
+  }
+
+  .section:last-child {
+    border-bottom: 0;
+  }
+
+  .section-title {
+    display: inline-block;
+    margin-bottom: 4mm;
+    padding-bottom: 1.5mm;
+    color: var(--navy);
+    border-bottom: 2px solid var(--gold);
+    font-size: 9mm;
+    font-weight: 700;
+    letter-spacing: 0.25mm;
+    text-transform: uppercase;
+  }
+
+  p,
+  ul {
+    color: #303c44;
+    font-size: 6.2mm;
+    line-height: 1.48;
+  }
+
+  p {
+    margin-bottom: 2mm;
+  }
+
+  ul {
+    margin: 0 0 3mm 6mm;
+  }
+
+  li {
+    margin-bottom: 1.5mm;
+  }
+
+  strong {
+    color: var(--navy);
+  }
+
+  .highlight {
+    color: var(--red);
+    font-weight: 700;
+  }
+
+  figure {
+    margin: 2mm 0 1mm;
+    break-inside: avoid;
+  }
+
+  figure img {
+    display: block;
+    width: 86%;
+    height: auto;
+    margin: 0 auto;
+    border: 1px solid #d5dde5;
+    border-radius: 2.5mm;
+    background: #fff;
+  }
+
+  figcaption {
+    width: 94%;
+    margin: 2mm auto 0;
+    padding: 2.5mm 3mm;
+    color: #303c44;
+    background: var(--light-blue);
+    border-left: 2mm solid var(--gold);
+    font-size: 5.2mm;
+    font-style: normal;
+    line-height: 1.45;
+    text-align: left;
+  }
+
+  figcaption strong {
+    color: var(--navy);
+  }
+
+  .table-label {
+    margin: 1mm 1mm 0;
+    color: var(--muted);
+    font-size: 5mm;
+    font-style: italic;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  figure.figure-compact img {
+    width: 74%;
+  }
+
+  figure.figure-medium img {
+    width: 80%;
+  }
+
+  table {
+    width: 100%;
+    margin: 2mm 0 3mm;
+    border-collapse: collapse;
+    font-size: 5mm;
+    line-height: 1.3;
+  }
+
+  th {
+    padding: 2mm 1.5mm;
+    color: #fff;
+    background: var(--navy);
+    font-weight: 700;
+    text-align: center;
+  }
+
+  td {
+    padding: 1.7mm 1.3mm;
+    border: 1px solid #ccd4dc;
+    text-align: center;
+  }
+
+  tbody tr:nth-child(even) td {
+    background: var(--light-blue);
+  }
+
+  td.best {
+    color: var(--red);
+    font-weight: 700;
+  }
+
+  td.good {
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  .config-grid,
+  .number-grid {
+    display: grid;
+    gap: 2.5mm;
+    margin: 3mm 0;
+  }
+
+  .config-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .number-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .config-item {
+    padding: 2.5mm 3mm;
+    background: var(--light-blue);
+    border-left: 2.5mm solid var(--gold);
+    font-size: 5.4mm;
+    line-height: 1.35;
+  }
+
+  .config-item .key {
+    color: var(--navy);
+    font-weight: 700;
+  }
+
+  .number-card {
+    padding: 3.5mm 2mm;
+    color: var(--navy);
+    background: var(--light-blue);
+    border-top: 2mm solid var(--gold);
+    text-align: center;
+  }
+
+  .number-card .big {
+    display: block;
+    color: var(--navy);
+    font-size: 10mm;
+    font-weight: 700;
+    line-height: 1.05;
+  }
+
+  .number-card .small {
+    display: block;
+    margin-top: 1.5mm;
+    color: var(--muted);
+    font-size: 5mm;
+  }
+
+  .tag {
+    display: inline-block;
+    margin-right: 1mm;
+    padding: 0.6mm 2mm;
+    color: #fff;
+    background: var(--navy);
+    border-radius: 1.5mm;
+    font-size: 4.8mm;
+    font-weight: 700;
+  }
+
+  .tag.gold {
+    color: #1b2730;
+    background: #e2b840;
+  }
+
+  .tag.green {
+    background: var(--green);
+  }
+
+  .judge-wrap {
+    display: grid;
+    grid-template-columns: 42% 58%;
+    align-items: center;
+    gap: 4mm;
+    margin-top: 3mm;
+  }
+
+  .judge-wrap svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .legend {
+    font-size: 5.5mm;
+    line-height: 1.65;
+  }
+
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+  }
+
+  .swatch {
+    width: 5mm;
+    height: 5mm;
+    flex: 0 0 auto;
+    border-radius: 1mm;
+  }
+
+  .callout {
+    margin-top: 3mm;
+    padding: 4mm;
+    color: #27343c;
+    background: #fff8e2;
+    border-left: 3mm solid var(--gold);
+    font-size: 5.8mm;
+    line-height: 1.45;
+  }
+
+  .result-split {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    align-items: center;
+    gap: 5mm;
+  }
+
+  .result-split.chart-first {
+    grid-template-columns: 1.45fr 1fr;
+  }
+
+  .result-split.radar-last {
+    grid-template-columns: 1fr 1.45fr;
+  }
+
+  .result-split figure,
+  .result-split table {
+    margin: 0;
+  }
+
+  .result-split figure img {
+    width: 92%;
+  }
+
+  .result-split figcaption {
+    width: 100%;
+    font-size: 4.8mm;
+  }
+
+  .footer {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr 1fr;
+    gap: 12mm;
+    padding: 8mm 17mm;
+    color: #bfd0df;
+    background: var(--navy);
+    border-top: 3px solid var(--gold);
+  }
+
+  .footer-title {
+    margin-bottom: 2mm;
+    color: #f1cf67;
+    font-size: 6mm;
+    font-weight: 700;
+  }
+
+  .footer p,
+  .footer ul {
+    margin-bottom: 1mm;
+    color: #bfd0df;
+    font-size: 4.7mm;
+    line-height: 1.4;
+  }
+
+  .footer ul {
+    margin-left: 5mm;
+  }
+</style>
+</head>
+<body>
+  <header class="header">
+    <h1>LoRA Fine-Tuning for Role-Play Dialogue Generation</h1>
+    <div class="subtitle">Efficient Character Adaptation of Qwen2.5-3B-Instruct with 4-bit QLoRA</div>
+    <div class="authors">Yihan Liu &nbsp;·&nbsp; Xucheng Liao &nbsp;·&nbsp; Hongtan Long</div>
+    <div class="affiliation">Machine Learning Course Project · Department of Computer Science</div>
+  </header>
+
+  <main>
+    <div class="column">
+      <section class="section">
+        <h2 class="section-title">Problem &amp; Objective</h2>
+        <p>
+          Role-play dialogue requires a model to preserve a character's identity,
+          background, speaking style, and behavior while responding naturally across
+          turns. Prompting can provide these traits, but reliable adaptation remains
+          difficult with limited compute.
+        </p>
+        <p>
+          We fine-tune <strong>Qwen2.5-3B-Instruct</strong> with 4-bit QLoRA and test
+          whether the adapter adds measurable value beyond the same base model guided
+          by a character card.
+        </p>
+        <div class="number-grid">
+          <div class="number-card"><span class="big">3.09B</span><span class="small">base parameters</span></div>
+          <div class="number-card"><span class="big">0.1193%</span><span class="small">trainable parameters</span></div>
+          <div class="number-card"><span class="big">14.8 MB</span><span class="small">final adapter</span></div>
+          <div class="number-card"><span class="big">55.6%</span><span class="small">best single-turn win rate</span></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Usage / Inference Workflow</h2>
+        <p>
+          A character-card JSON is converted into the <strong>system prompt</strong>.
+          The current user message is formatted with Qwen's chat template and passed
+          to the base model plus LoRA adapter to generate an in-character response.
+        </p>
+        <figure>
+          <img src="prompt-interaction-flow.png" alt="Character-card inference workflow">
+          <figcaption>
+            <strong>Figure 1. Usage and inference workflow.</strong>
+            The left side shows the information stored in a character card: name, persona,
+            background, speaking style, and appearance. These fields are joined into a
+            system prompt, combined with the current user message, and serialized by
+            Qwen's chat template before generation. The final response is produced by
+            Qwen2.5 with the LoRA adapter. Full dialogue history is passed in the archived
+            evaluation, whereas the current interactive <code>chat()</code> implementation
+            sends only the current user turn.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Data</h2>
+        <p>
+          The source is <strong>PIPPA-ShareGPT-formatted</strong>, with roughly 16k raw
+          role-play conversations. The versioned processed snapshot contains 11,515
+          conversations after filtering and deduplication.
+        </p>
+        <table aria-label="Processed dataset split">
+          <thead>
+            <tr><th>Split</th><th>Rows</th><th>Share</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Train</td><td>9,211</td><td>80.0%</td></tr>
+            <tr><td>Validation</td><td>1,152</td><td>10.0%</td></tr>
+            <tr><td>Test</td><td>1,152</td><td>10.0%</td></tr>
+            <tr><td><strong>Total</strong></td><td><strong>11,515</strong></td><td>100%</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Processing preserves the system character card, removes old turns at message
+          boundaries when necessary, and computes loss only on assistant tokens.
+        </p>
+      </section>
+
+      <section class="section grow">
+        <h2 class="section-title">Training Method</h2>
+        <figure>
+          <img src="training-pipeline.png" alt="QLoRA role-play model training pipeline">
+          <figcaption>
+            <strong>Figure 2. QLoRA training pipeline.</strong>
+            PIPPA role-play conversations are converted into system, user, and assistant
+            messages while preserving the character card and the most recent dialogue
+            turns. Only assistant tokens contribute to the training loss; system, user,
+            and padding tokens are masked with −100. Qwen2.5-3B is loaded with 4-bit NF4
+            quantization and frozen, while LoRA updates the q, k, v, and o attention
+            projections. The result is a 14.8 MB adapter containing 3.69M trainable
+            parameters, or 0.1193% of the base model.
+          </figcaption>
+        </figure>
+        <div class="config-grid">
+          <div class="config-item"><span class="key">Quantization</span><br>4-bit NF4 + double quantization</div>
+          <div class="config-item"><span class="key">LoRA r / alpha</span><br>8 / 16, dropout 0.05</div>
+          <div class="config-item"><span class="key">Target modules</span><br>q / k / v / o_proj</div>
+          <div class="config-item"><span class="key">Optimization</span><br>batch 1, accumulation 8</div>
+          <div class="config-item"><span class="key">Context</span><br>512 or 1024 tokens</div>
+          <div class="config-item"><span class="key">Experiments</span><br>1–2 epochs, lr 2e-4 or 1e-4</div>
+        </div>
+        <p>
+          Runs were completed on RTX 4080 SUPER, RTX 5060, NVIDIA vGPU-32GB, and
+          RTX 4060 Laptop hardware. GPU time is therefore reported per run rather than
+          treated as a controlled comparison.
+        </p>
+      </section>
+      <section class="section">
+        <h2 class="section-title">Evaluation Protocol</h2>
+        <p>
+          Every experiment compares the same three systems:
+          <span class="tag">Base, no card</span>
+          <span class="tag gold">Base + card</span>
+          <span class="tag green">LoRA + card</span>
+        </p>
+        <p>
+          Automatic metrics cover PPL, diversity, repetition, refusal, and performance.
+          MiniMax-M3 anonymously judges single-turn quality and a four-turn memory challenge.
+          Paired differences use bootstrap 95% confidence intervals.
+        </p>
+        <figure>
+          <img src="evaluation-pipeline.png" alt="Three-system evaluation pipeline">
+          <figcaption>
+            <strong>Figure 3. Three-system evaluation protocol.</strong>
+            A frozen, filtered test set is evaluated under three controlled conditions:
+            Base without a character card, Base with a card, and LoRA with the same card.
+            All systems receive identical samples and generation settings, so the two
+            comparisons separate the contribution of prompting from the additional
+            contribution of LoRA. Automatic metrics measure likelihood, diversity,
+            repetition, refusal, and performance; MiniMax-M3 anonymously scores
+            single-turn and four-turn quality. Per-sample records, bootstrap intervals,
+            and saved manifests support paired and reproducible analysis.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Judge Dimensions</h2>
+        <div class="judge-wrap">
+          <svg viewBox="0 0 120 120" role="img" aria-label="Single-turn judge weights">
+            <circle cx="60" cy="60" r="42" fill="none" stroke="#edf1f4" stroke-width="25"/>
+            <circle cx="60" cy="60" r="42" pathLength="100" fill="none" stroke="#1a3a5c" stroke-width="25" stroke-dasharray="35 65" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+            <circle cx="60" cy="60" r="42" pathLength="100" fill="none" stroke="#c89518" stroke-width="25" stroke-dasharray="20 80" stroke-dashoffset="-35" transform="rotate(-90 60 60)"/>
+            <circle cx="60" cy="60" r="42" pathLength="100" fill="none" stroke="#4a7a9a" stroke-width="25" stroke-dasharray="20 80" stroke-dashoffset="-55" transform="rotate(-90 60 60)"/>
+            <circle cx="60" cy="60" r="42" pathLength="100" fill="none" stroke="#7ab0d4" stroke-width="25" stroke-dasharray="15 85" stroke-dashoffset="-75" transform="rotate(-90 60 60)"/>
+            <circle cx="60" cy="60" r="42" pathLength="100" fill="none" stroke="#c0d8ec" stroke-width="25" stroke-dasharray="10 90" stroke-dashoffset="-90" transform="rotate(-90 60 60)"/>
+            <text x="60" y="57" text-anchor="middle" font-size="11" font-weight="700" fill="#1a3a5c">Single-turn</text>
+            <text x="60" y="70" text-anchor="middle" font-size="9" fill="#607080">weights</text>
+          </svg>
+          <div class="legend">
+            <div class="legend-row"><span class="swatch" style="background:#1a3a5c"></span>Identity — 35%</div>
+            <div class="legend-row"><span class="swatch" style="background:#c89518"></span>Style — 20%</div>
+            <div class="legend-row"><span class="swatch" style="background:#4a7a9a"></span>Relevance — 20%</div>
+            <div class="legend-row"><span class="swatch" style="background:#7ab0d4"></span>Naturalness — 15%</div>
+            <div class="legend-row"><span class="swatch" style="background:#c0d8ec"></span>Immersion — 10%</div>
+          </div>
+        </div>
+        <p>
+          The donut shows how the single-turn weighted score prioritizes role identity,
+          followed by style and relevance. Naturalness and immersion receive smaller but
+          still explicit contributions. Four-turn evaluation replaces relevance and
+          naturalness with Memory 25% and Coherence 20%, while Identity remains 25%.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Four LoRA Experiments</h2>
+        <div class="result-split">
+          <div>
+            <div class="table-label">Valid Judge counts: 100 / 70 / 99 / 99.</div>
+            <table aria-label="Four LoRA experiment results">
+              <thead>
+                <tr>
+                  <th>Run</th><th>PPL ↓</th><th>Identity ↑</th><th>Weighted ↑</th>
+                  <th>Win ↑</th><th>Rep. ↓</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>train_1</td><td>10.404</td><td>2.770</td><td>2.718</td><td>44.0%</td><td>25.6%</td></tr>
+                <tr><td>train_2</td><td class="good">9.441</td><td>2.657</td><td>2.643</td><td>48.6%</td><td>40.2%</td></tr>
+                <tr><td>train_3</td><td>10.446</td><td class="good">2.970</td><td>2.935</td><td class="good">55.6%</td><td>23.9%</td></tr>
+                <tr><td>train_4</td><td>10.343</td><td>2.909</td><td class="good">2.938</td><td class="good">55.6%</td><td class="best">18.1%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <figure class="figure-medium">
+            <img src="experiment-trends.svg" alt="Win-rate and repetition trends across four experiments">
+            <figcaption>
+              <strong>Figure 4. Experiment trend across four LoRA runs.</strong>
+              The green line is the single-turn pairwise win rate of LoRA + card against
+              Base + card, so values above 50% favor LoRA. The red line is the LoRA
+              repetition rate, where lower values are preferable. The 1024-token runs
+              train_3 and train_4 reach 55.6% wins, compared with 44.0% and 48.6% for the
+              512-token runs. Lowering the learning rate in train_4 preserves the win rate
+              while reducing repetition from 23.9% to 18.1%, although this remains well
+              above the 2.9% prompt-baseline rate.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="column">
+      <section class="section">
+        <h2 class="section-title">Single-Turn Quality</h2>
+        <figure class="figure-compact">
+          <img src="train4-single-radar.svg" alt="Train 4 single-turn radar chart">
+          <figcaption>
+            <strong>Figure 5. train_4 single-turn Judge profile.</strong>
+            Each axis is scored from 1 to 5, and a polygon farther from the center
+            indicates stronger performance. LoRA + card is higher than Base + card on
+            identity, style, relevance, naturalness, and immersion, with the clearest
+            visible gains in identity and immersion. Its weighted mean rises from 2.703
+            to 2.938. This descriptive improvement should still be interpreted cautiously:
+            the paired weighted difference is +0.235, but its 95% confidence interval
+            [−0.060, 0.558] includes zero.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="section grow">
+        <h2 class="section-title">Paired Evidence</h2>
+        <figure class="figure-medium">
+          <img src="paired-effects.svg" alt="Paired LoRA minus Base plus card effects">
+          <figcaption>
+            <strong>Figure 6. Paired effect of LoRA beyond character-card prompting.</strong>
+            The vertical zero line represents no difference between LoRA + card and
+            Base + card. Green circles show the mean single-turn weighted-score difference,
+            and the horizontal bars show bootstrap 95% confidence intervals. Although
+            train_3 and train_4 have positive means and 55.6% win rates, every interval
+            crosses zero, so a stable single-turn advantage is not established. Red
+            squares show the four-turn mean difference; all four are negative, indicating
+            consistent multi-turn degradation relative to the prompt baseline.
+          </figcaption>
+        </figure>
+        <div class="callout">
+          <strong>Interpretation:</strong> the adapter learns the role-play response
+          distribution, but current evidence supports a single-turn improvement trend,
+          not a stable significant advantage over character-card prompting.
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Prompting Is a Strong Baseline</h2>
+        <div class="result-split chart-first">
+          <figure>
+            <img src="character-card-impact.svg" alt="Character-card contribution to train 4 judge scores">
+            <figcaption>
+              <strong>Figure 7. Contribution of the character card and LoRA.</strong>
+              Dark and light bars show weighted single-turn and four-turn scores for the
+              three train_4 systems. Adding the character card to the base model increases
+              the scores by 0.765 and 1.270 points, demonstrating that prompting alone is
+              a strong baseline. LoRA adds another 0.235 points in single-turn evaluation,
+              but reduces the four-turn score by 0.485. The accompanying pairwise table
+              confirms that both prompted systems clearly outperform Base without a card.
+            </figcaption>
+          </figure>
+          <table aria-label="Train 4 pairwise single-turn ranking">
+            <thead>
+              <tr><th>train_4 comparison</th><th>Left win</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>LoRA + card vs Base + card</td><td class="good">55.6%</td></tr>
+              <tr><td>Base + card vs Base, no card</td><td class="good">62.6%</td></tr>
+              <tr><td>LoRA + card vs Base, no card</td><td class="good">69.7%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Four-Turn Challenge</h2>
+        <div class="result-split radar-last">
+          <div>
+            <div class="table-label">train_4, 20 characters × 4 turns.</div>
+            <table aria-label="Train 4 four-turn judge results">
+              <thead>
+                <tr><th>System</th><th>Identity</th><th>Memory</th><th>Coherence</th><th>Weighted</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Base, no card</td><td>1.00</td><td>3.25</td><td>2.45</td><td>1.882</td></tr>
+                <tr><td>Base + card</td><td class="good">3.40</td><td>2.90</td><td class="good">3.35</td><td class="good">3.153</td></tr>
+                <tr><td>LoRA + card</td><td>2.85</td><td class="good">2.95</td><td>2.60</td><td>2.668</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <figure class="figure-compact">
+            <img src="train4-multi-radar.svg" alt="Train 4 four-turn radar chart">
+            <figcaption>
+              <strong>Figure 8. train_4 four-turn Judge profile.</strong>
+              The five axes test whether the character remains recognizable, remembers
+              earlier facts, responds coherently, preserves speaking style, and sustains
+              immersion across four turns. LoRA + card is nearly equal to Base + card on
+              memory, scoring 2.95 versus 2.90, but trails on every other dimension.
+              Identity falls from 3.40 to 2.85 and coherence from 3.35 to 2.60, producing
+              weighted scores of 2.668 versus 3.153. This pattern shows that improved
+              single-turn fidelity does not automatically transfer to multi-turn consistency.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Discussion</h2>
+        <p>
+          <strong>Training changed the distribution.</strong> LoRA PPL is 9.4–10.4,
+          far below the prompt baseline, showing that the adapter learned the target
+          response distribution. PPL alone is insufficient: train_2 combines the lowest
+          PPL with the highest repetition and weakest multi-turn score.
+        </p>
+        <p>
+          <strong>Prompting already contributes most of the gain.</strong> The character
+          card produces a large improvement without weight updates. LoRA's extra
+          single-turn gain is smaller and its confidence interval includes zero.
+        </p>
+        <p>
+          <strong>Repetition remains the clearest failure mode.</strong> train_4 lowers
+          LoRA repetition to 18.1%, but this is still about <strong>6.3×</strong> the
+          Base + card rate of 2.9%.
+        </p>
+        <p>
+          <strong>Multi-turn quality remains weaker.</strong> All four LoRA variants
+          score below Base + card in the four-turn comparison. The evidence points to
+          data quality, repeated patterns, and insufficient multi-turn supervision as
+          joint concerns rather than proving a single cause.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Conclusion</h2>
+        <ul>
+          <li>4-bit QLoRA adapts a 3B model using only 3.69M trainable parameters.</li>
+          <li>The best variants reach a 55.6% single-turn win rate vs Base + card.</li>
+          <li>All single-turn paired 95% intervals include zero, so improvement is a trend.</li>
+          <li>Current LoRA variants remain below the prompt baseline in four-turn quality.</li>
+          <li>Lower learning rate reduces repetition but does not repair multi-turn degradation.</li>
+        </ul>
+        <p class="highlight">
+          Efficient adaptation is feasible, but stronger data quality and multi-turn
+          supervision are required for dependable character consistency.
+        </p>
+      </section>
+
+      <section class="section grow">
+        <h2 class="section-title">Next Steps</h2>
+        <ul>
+          <li>Fix and version one shared data snapshot for controlled ablations.</li>
+          <li>Run repetition-focused cleaning while keeping the frozen test set unchanged.</li>
+          <li>Increase high-quality multi-turn supervision and audit character leakage.</li>
+          <li>Add human blind evaluation or a second Judge and permit ties.</li>
+          <li>Retest learning rate, LoRA rank, and FFN targets on identical data.</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div>
+      <div class="footer-title">References</div>
+      <ul>
+        <li>Hu et al. (2022). LoRA: Low-Rank Adaptation of Large Language Models.</li>
+        <li>Qwen Team (2024). Qwen2.5 Technical Report.</li>
+        <li>KaraKaraWitch/PIPPA-ShareGPT-formatted; Hugging Face PEFT.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-title">Reproducibility</div>
+      <p>Code: github.com/yeunmer2006/26ML-roleplay-lora</p>
+      <p>Model: Qwen/Qwen2.5-3B-Instruct · Seed: 42</p>
+      <p>Charts generated from versioned CSV summaries.</p>
+    </div>
+    <div>
+      <div class="footer-title">Evaluation Notes</div>
+      <p>Single-turn valid Judge counts: 100 / 70 / 99 / 99.</p>
+      <p>Four-turn evaluation: 20 characters per experiment.</p>
+      <p>Poster data snapshot: 13 June 2026.</p>
+    </div>
+  </footer>
+</body>
+</html>
