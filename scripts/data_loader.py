@@ -210,10 +210,10 @@ def _template_ids(tokenizer, messages, add_generation_prompt=False):
 
 
 def truncate_messages(messages, tokenizer, max_length):
-    """保留 system 和最近消息，按聊天模板的实际 token 长度裁剪。
+    """保留 system 和最近的完整 user-assistant 后缀。
 
-    max_length 是软预算。如果完整 system 与最后一条 assistant 消息已经超出
-    预算，仍完整保留二者，避免角色卡或监督回复被 token 级截断。
+    max_length 是软预算。如果 system 与最后一组 user-assistant 消息已经超出
+    预算，仍完整保留该组，避免产生缺少用户输入的孤立 assistant 回复。
     """
     if not messages:
         return []
@@ -232,12 +232,19 @@ def truncate_messages(messages, tokenizer, max_length):
         return system
 
     dialogue = dialogue[:last_assistant + 1]
-    for start in range(len(dialogue)):
+    user_starts = [
+        index
+        for index, message in enumerate(dialogue)
+        if message["role"] == "user"
+    ]
+    for start in user_starts:
         candidate = system + dialogue[start:]
         if len(_template_ids(tokenizer, candidate)) <= max_length:
             return candidate
 
-    return system + [dialogue[-1]]
+    if user_starts:
+        return system + dialogue[user_starts[-1]:]
+    return system
 
 
 def encode_conversation(example, tokenizer, max_length: int = 512):

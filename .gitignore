@@ -31,6 +31,7 @@ ml_roleplay/
 
 # 数据和训练输出
 processed/
+processed_clean/
 data/
 output/
 runs/
