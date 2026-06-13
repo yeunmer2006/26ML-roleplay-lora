@@ -119,7 +119,50 @@ python scripts/inference.py \
 
 ### 7. 模型评估
 
-> 目前默认是minimax的api
+#### 评估模式概览
+
+当前评估采用三路对比：
+
+| 系统 | 说明 |
+|------|------|
+| `Base, no card` | 基座模型，不提供角色卡 |
+| `Base + card` | 基座模型，通过 system prompt 提供角色卡 |
+| `LoRA + card` | 加载 LoRA Adapter，并提供相同角色卡 |
+
+默认从测试集经过安全与质量过滤后，选择 100 条单轮样本和 20 个四轮挑战。
+三组回答使用相同输入和贪心解码参数生成，再计算本地自动指标，并可提交给
+MiniMax-M3 进行匿名评分。
+
+```mermaid
+flowchart TD
+    A["启动 eval.py compare"] --> B{"使用 --resume<br/>且已有样本 JSONL？"}
+    B -- 是 --> C["读取已有单轮、多轮记录<br/>跳过已完成步骤"]
+    B -- 否 --> D["加载 test.jsonl<br/>安全过滤、稳定排序、角色去重"]
+    D --> E["选择 100 条单轮样本<br/>20 个四轮挑战"]
+    E --> F{"使用 --reuse_baseline？"}
+    F -- 是 --> G["校验模型、数据和生成配置<br/>导入 Base 两组回答"]
+    F -- 否 --> H["生成 Base, no card<br/>Base + card"]
+    G --> I["生成 LoRA + card"]
+    H --> I
+    C --> J["检查三组系统的缺失结果<br/>只补齐未完成回答"]
+    I --> K{"使用 --skip_judge？"}
+    J --> K
+    K -- 否 --> L["MiniMax-M3 匿名评分<br/>单轮、多轮及顺序一致性检查"]
+    K -- 是 --> M["跳过 Judge<br/>保留已有评分"]
+    L --> N["汇总自动指标<br/>PPL、Distinct、重复率、性能"]
+    M --> N
+    N --> O["输出 manifest.json<br/>样本 JSONL、summary.json、report.md"]
+```
+
+| 模式 | 参数 | 用途 |
+|------|------|------|
+| 完整评估 | 无额外参数 | 本地生成三组回答并调用 Judge |
+| 复用基线 | `--reuse_baseline <目录>` | 复用两组 Base 回答，只生成新 LoRA 回答 |
+| 断点续跑 | `--resume` | 读取现有 JSONL，只补齐缺失生成或评分 |
+| 仅自动指标 | `--skip_judge` | 不调用 Judge，只计算本地指标 |
+
+`--reuse_baseline`、`--resume` 和 `--skip_judge` 可以按需要组合使用。当前
+Judge 默认使用 MiniMax API，API Key 只通过环境变量传入。
 
 conda activate ml_roleplay
 
@@ -142,10 +185,8 @@ python scripts/eval.py compare \
 unset JUDGE_API_KEY JUDGE_BASE_URL JUDGE_MODEL
 ```
 
-评估会比较无角色卡基座、角色卡基座和角色卡 LoRA 三组系统，默认使用
-100 条单轮样本和 20 个四轮挑战。结果包含逐样本 JSONL、汇总 JSON 和可直接
-用于报告的 Markdown。添加 `--resume` 可继续中断的生成或裁判任务；添加
-`--skip_judge` 可仅运行本地自动指标。
+结果包含逐样本 JSONL、汇总 JSON 和可直接用于报告的 Markdown。下面分别
+说明断点续跑与基线复用的具体行为。
 
 #### 断点续跑（resume）
 
@@ -157,9 +198,9 @@ unset JUDGE_API_KEY JUDGE_BASE_URL JUDGE_MODEL
 ```bash
 python scripts/eval.py compare \
   --base_model "${BASE_MODEL}" \
-  --adapter output/experiments/train_1/final_model \
+  --adapter output/experiments/train_3/final_model \
   --dataset processed \
-  --output_dir output/evaluations/train_1 \
+  --output_dir output/evaluations/train_3 \
   --resume
 ```
 
@@ -187,6 +228,45 @@ python scripts/eval.py compare \
 | judge 配额耗尽，只补自动指标 | `--resume --skip_judge` |
 | 重新生成某个系统的回答 | 删除该样本在 `systems` 字段下对应键再 `--resume` |
 | 重新跑全部 judge | 备份后删除 `judge` / `judge_consistency` 字段再 `--resume` |
+
+#### 复用基座评测结果
+
+多次 LoRA 微调使用相同基座模型和评测配置时，可以复用之前生成的
+`Base, no card` 和 `Base + card` 回答，只生成新实验的 `LoRA + card`：
+
+```bash
+python scripts/eval.py compare \
+  --base_model "${BASE_MODEL}" \
+  --adapter output/experiments/train_3/final_model \
+  --dataset processed \
+  --output_dir output/evaluations/train_3 \
+  --reuse_baseline output/evaluations/train_1
+```
+
+复用时会严格检查基座模型、数据集、安全规则、seed、样本数量、
+`max_new_tokens`、生成配置以及实际样本内容。不同机器上的模型绝对路径可以
+不同，但模型目录名和 LoRA `adapter_config.json` 中记录的基座模型必须一致。
+任何配置或样本不一致都会直接报错，不会静默复用。
+
+导入过程只复制两组基座回答及质量指标，不复制旧实验的 `LoRA + card`、
+judge 和 judge consistency。新 LoRA 回答生成完成后，三组回答会重新提交给
+judge。由于复用结果可能来自另一台机器，基座的 latency、tokens/s 和 GPU
+显存数据会被移除，并在新报告中显示为 `N/A`。
+
+如果运行中断，`--reuse_baseline` 可以与 `--resume` 同时使用：
+
+```bash
+python scripts/eval.py compare \
+  --base_model "${BASE_MODEL}" \
+  --adapter output/experiments/train_3/final_model \
+  --dataset processed \
+  --output_dir output/evaluations/train_3 \
+  --reuse_baseline output/evaluations/train_1 \
+  --resume
+```
+
+当目标目录已经存在单轮和多轮 JSONL 时，`--resume` 会直接读取现有进度，
+不会再次导入或覆盖基座结果。
 
 API Key 不直接写入脚本或命令参数。若密钥曾以明文形式保存或提交，应立即
 在服务商控制台撤销并重新生成。

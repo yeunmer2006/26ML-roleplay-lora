@@ -7,6 +7,7 @@ from scripts.eval import (
     JudgeClient,
     assistant_perplexity,
     anonymize_systems,
+    import_baseline_records,
     compare,
     map_judgment_to_systems,
     metric_stats,
@@ -15,6 +16,7 @@ from scripts.eval import (
     safety_matches,
     select_safe_samples,
     summarize,
+    validate_reuse_manifest,
     validate_judgment,
     write_jsonl,
     build_parser,
@@ -419,6 +421,12 @@ def test_resume_with_complete_generations_does_not_load_model(monkeypatch, tmp_p
         "scripts.eval.load_base_model",
         lambda _: (_ for _ in ()).throw(AssertionError("model should not load")),
     )
+    monkeypatch.setattr(
+        "scripts.eval.reuse_baseline",
+        lambda *_: (_ for _ in ()).throw(
+            AssertionError("baseline should not be imported again")
+        ),
+    )
     args = SimpleNamespace(
         output_dir=str(output_dir),
         resume=True,
@@ -431,10 +439,102 @@ def test_resume_with_complete_generations_does_not_load_model(monkeypatch, tmp_p
         adapter=str(adapter),
         max_new_tokens=16,
         skip_judge=True,
+        reuse_baseline="missing-source",
     )
     compare(args)
     assert (output_dir / "summary.json").exists()
     assert (output_dir / "report.md").exists()
+
+
+def test_import_baseline_keeps_quality_metrics_and_removes_performance():
+    current = {"one": judged_record()}
+    current["one"]["systems"] = {}
+    current["one"]["judge"] = None
+    current["one"]["judge_consistency"] = None
+    source = {"one": judged_record()}
+
+    import_baseline_records(current, source, "single-turn")
+
+    assert set(current["one"]["systems"]) == {
+        "base_no_card",
+        "base_with_card",
+    }
+    result = current["one"]["systems"]["base_with_card"]
+    assert result["response"] == "card"
+    assert result["assistant_perplexity"]["perplexity"] == 3.0
+    assert "latency_seconds" not in result
+    assert "tokens_per_second" not in result
+    assert "peak_gpu_memory_mb" not in result
+    assert current["one"]["judge"] is None
+
+
+def test_import_baseline_rejects_changed_sample_content():
+    current = {"one": judged_record()}
+    current["one"]["systems"] = {}
+    source = {"one": judged_record()}
+    source["one"]["character_card"] = "A different character."
+
+    with pytest.raises(RuntimeError, match="sample content differs"):
+        import_baseline_records(current, source, "single-turn")
+
+
+def test_reuse_manifest_accepts_same_model_name_across_machines(tmp_path):
+    adapter = tmp_path / "adapter"
+    adapter.mkdir()
+    (adapter / "adapter_config.json").write_text(json.dumps({
+        "base_model_name_or_path": "Qwen/Qwen2.5-3B-Instruct",
+    }))
+    args = SimpleNamespace(
+        base_model="/root/models/Qwen2.5-3B-Instruct",
+        dataset="processed",
+        safety_rules="configs/eval_safety_terms.json",
+        seed=42,
+        single_samples=100,
+        multi_samples=20,
+        max_new_tokens=256,
+    )
+    source = {
+        "base_model": "/home/user/models/Qwen2.5-3B-Instruct",
+        "dataset": "processed",
+        "safety_rules": "configs/eval_safety_terms.json",
+        "seed": 42,
+        "single_samples": 100,
+        "multi_samples": 20,
+        "max_new_tokens": 256,
+        "generation": {"do_sample": False},
+    }
+
+    validate_reuse_manifest(source, args, adapter)
+
+
+def test_reuse_manifest_rejects_generation_mismatch(tmp_path):
+    adapter = tmp_path / "adapter"
+    adapter.mkdir()
+    (adapter / "adapter_config.json").write_text(json.dumps({
+        "base_model_name_or_path": "Qwen/Qwen2.5-3B-Instruct",
+    }))
+    args = SimpleNamespace(
+        base_model="Qwen/Qwen2.5-3B-Instruct",
+        dataset="processed",
+        safety_rules="configs/eval_safety_terms.json",
+        seed=42,
+        single_samples=100,
+        multi_samples=20,
+        max_new_tokens=128,
+    )
+    source = {
+        "base_model": "Qwen/Qwen2.5-3B-Instruct",
+        "dataset": "processed",
+        "safety_rules": "configs/eval_safety_terms.json",
+        "seed": 42,
+        "single_samples": 100,
+        "multi_samples": 20,
+        "max_new_tokens": 256,
+        "generation": {"do_sample": False},
+    }
+
+    with pytest.raises(RuntimeError, match="max_new_tokens"):
+        validate_reuse_manifest(source, args, adapter)
 
 
 def test_eval_model_paths_default_to_environment(monkeypatch):
@@ -467,3 +567,21 @@ def test_eval_explicit_model_paths_override_environment(monkeypatch):
 
     assert args.base_model == "/models/from-cli"
     assert args.adapter == "/adapter/from-cli"
+
+
+def test_eval_parses_reuse_baseline_with_resume():
+    args = build_parser().parse_args([
+        "compare",
+        "--base_model",
+        "Qwen/Qwen2.5-3B-Instruct",
+        "--adapter",
+        "output/experiments/train_3/final_model",
+        "--output_dir",
+        "output/evaluations/train_3",
+        "--reuse_baseline",
+        "output/evaluations/train_1",
+        "--resume",
+    ])
+
+    assert args.reuse_baseline == "output/evaluations/train_1"
+    assert args.resume is True

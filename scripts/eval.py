@@ -2,6 +2,7 @@
 """Three-way ablation evaluation for role-play LoRA models."""
 
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -32,6 +33,12 @@ SYSTEM_LABELS = {
     "base_with_card": "Base + card",
     "lora_with_card": "LoRA + card",
 }
+BASELINE_SYSTEMS = ("base_no_card", "base_with_card")
+PERFORMANCE_FIELDS = (
+    "latency_seconds",
+    "tokens_per_second",
+    "peak_gpu_memory_mb",
+)
 SINGLE_WEIGHTS = {
     "role_identity": 0.35,
     "style": 0.20,
@@ -90,6 +97,13 @@ def atomic_write_json(path, value):
     temporary.replace(path)
 
 
+def load_json(path):
+    path = Path(path)
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def json_default(value):
     if isinstance(value, (np.integer,)):
         return int(value)
@@ -122,6 +136,114 @@ def write_jsonl(path, records):
         for record in sorted(values, key=lambda item: item["sample_id"]):
             file.write(json.dumps(record, ensure_ascii=False, default=json_default) + "\n")
     temporary.replace(path)
+
+
+def model_name(value):
+    return Path(str(value).rstrip("/")).name.casefold()
+
+
+def adapter_base_model(adapter_path):
+    config_path = Path(adapter_path) / "adapter_config.json"
+    if not config_path.exists():
+        raise FileNotFoundError(f"Adapter config not found: {config_path}")
+    base_model = load_json(config_path).get("base_model_name_or_path")
+    if not base_model:
+        raise RuntimeError(f"Missing base_model_name_or_path in {config_path}")
+    return base_model
+
+
+def comparable_record(record):
+    return {
+        key: value
+        for key, value in record.items()
+        if key not in {"systems", "judge", "judge_consistency"}
+    }
+
+
+def validate_reuse_manifest(source, args, adapter_path):
+    expected = {
+        "dataset": args.dataset,
+        "safety_rules": args.safety_rules,
+        "seed": args.seed,
+        "single_samples": args.single_samples,
+        "multi_samples": args.multi_samples,
+        "max_new_tokens": args.max_new_tokens,
+        "generation": {"do_sample": False},
+    }
+    differences = [
+        f"{key}: source={source.get(key)!r}, current={value!r}"
+        for key, value in expected.items()
+        if source.get(key) != value
+    ]
+    model_names = {
+        model_name(source.get("base_model", "")),
+        model_name(args.base_model),
+        model_name(adapter_base_model(adapter_path)),
+    }
+    if "" in model_names or len(model_names) != 1:
+        differences.append(
+            "base_model: "
+            f"source={source.get('base_model')!r}, current={args.base_model!r}, "
+            f"adapter={adapter_base_model(adapter_path)!r}"
+        )
+    if differences:
+        raise RuntimeError(
+            "Baseline evaluation is incompatible:\n- " + "\n- ".join(differences)
+        )
+
+
+def import_baseline_records(current, source, kind):
+    if set(current) != set(source):
+        missing = sorted(set(current) - set(source))
+        extra = sorted(set(source) - set(current))
+        raise RuntimeError(
+            f"Baseline {kind} sample IDs differ: missing={missing[:5]}, extra={extra[:5]}"
+        )
+
+    for sample_id, record in current.items():
+        source_record = source[sample_id]
+        if comparable_record(record) != comparable_record(source_record):
+            raise RuntimeError(
+                f"Baseline {kind} sample content differs: {sample_id}"
+            )
+        for system in BASELINE_SYSTEMS:
+            result = source_record.get("systems", {}).get(system)
+            if not result or result.get("error"):
+                raise RuntimeError(
+                    f"Baseline {kind} result is missing or failed: "
+                    f"{sample_id} / {system}"
+                )
+            imported = copy.deepcopy(result)
+            for field in PERFORMANCE_FIELDS:
+                imported.pop(field, None)
+            record["systems"][system] = imported
+
+
+def reuse_baseline(args, adapter_path, single_records, multi_records):
+    source_dir = resolve_path(args.reuse_baseline)
+    output_dir = resolve_path(args.output_dir)
+    if source_dir.resolve() == output_dir.resolve():
+        raise RuntimeError("--reuse_baseline must differ from --output_dir")
+
+    manifest_path = source_dir / "manifest.json"
+    single_path = source_dir / "single_turn_samples.jsonl"
+    multi_path = source_dir / "multi_turn_samples.jsonl"
+    for path in (manifest_path, single_path, multi_path):
+        if not path.exists():
+            raise FileNotFoundError(f"Baseline evaluation file not found: {path}")
+
+    validate_reuse_manifest(load_json(manifest_path), args, adapter_path)
+    import_baseline_records(
+        single_records, load_jsonl(single_path), "single-turn"
+    )
+    import_baseline_records(
+        multi_records, load_jsonl(multi_path), "multi-turn"
+    )
+    return {
+        "source": args.reuse_baseline,
+        "systems": list(BASELINE_SYSTEMS),
+        "performance_fields_excluded": list(PERFORMANCE_FIELDS),
+    }
 
 
 def append_failure(path, record):
@@ -982,13 +1104,21 @@ def render_report(summary, manifest, single_records):
             f"{fmt(multi_judge['weighted_total']['mean'])} |"
         )
 
+    reuse_note = ""
+    if manifest.get("reuse_baseline"):
+        source = manifest["reuse_baseline"]["source"]
+        reuse_note = (
+            f"- Reused baseline: `{source}` "
+            "(baseline latency, throughput and GPU memory excluded)\n"
+        )
+
     return f"""# Role-Play LoRA Evaluation Report
 
 ## Experiment
 
 - Base model: `{manifest['base_model']}`
 - Adapter: `{manifest['adapter']}`
-- Seed: {manifest['seed']}
+{reuse_note}- Seed: {manifest['seed']}
 - Single-turn samples: {summary['counts']['single_turn']}
 - Multi-turn samples: {summary['counts']['multi_turn']}
 - Excluded samples: {summary['counts']['excluded']}
@@ -1046,7 +1176,7 @@ available in `summary.json`.
 """
 
 
-def prepare_output(args):
+def prepare_output(args, adapter_path):
     output_dir = resolve_path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     paths = {
@@ -1059,7 +1189,13 @@ def prepare_output(args):
         "report": output_dir / "report.md",
     }
     if args.resume and paths["single"].exists() and paths["multi"].exists():
-        return paths, load_jsonl(paths["single"]), load_jsonl(paths["multi"])
+        existing_manifest = load_json(paths["manifest"])
+        return (
+            paths,
+            load_jsonl(paths["single"]),
+            load_jsonl(paths["multi"]),
+            existing_manifest.get("reuse_baseline"),
+        )
 
     _, _, test_data = load_local_dataset(str(resolve_path(args.dataset)))
     if not test_data:
@@ -1074,10 +1210,15 @@ def prepare_output(args):
     )
     single_records = {record["sample_id"]: record for record in single}
     multi_records = {record["sample_id"]: record for record in multi}
+    reuse_info = None
+    if getattr(args, "reuse_baseline", None):
+        reuse_info = reuse_baseline(
+            args, adapter_path, single_records, multi_records
+        )
     write_jsonl(paths["single"], single_records)
     write_jsonl(paths["multi"], multi_records)
     write_jsonl(paths["excluded"], excluded)
-    return paths, single_records, multi_records
+    return paths, single_records, multi_records, reuse_info
 
 
 def compare(args):
@@ -1087,11 +1228,13 @@ def compare(args):
         )
     if not args.adapter:
         raise RuntimeError("Set --adapter or ADAPTER_DIR to the LoRA adapter directory")
-    paths, single_records, multi_records = prepare_output(args)
-    base_source = resolve_model_source(args.base_model)
     adapter_source = resolve_path(args.adapter)
     if not adapter_source.exists():
         raise FileNotFoundError(f"Adapter not found: {adapter_source}")
+    paths, single_records, multi_records, reuse_info = prepare_output(
+        args, adapter_source
+    )
+    base_source = resolve_model_source(args.base_model)
     manifest = {
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "base_model": args.base_model,
@@ -1106,6 +1249,8 @@ def compare(args):
         "judge_model": os.getenv("JUDGE_MODEL") if not args.skip_judge else None,
         "systems": SYSTEM_LABELS,
     }
+    if reuse_info:
+        manifest["reuse_baseline"] = reuse_info
     atomic_write_json(paths["manifest"], manifest)
 
     missing_systems = {
@@ -1118,7 +1263,7 @@ def compare(args):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is required to generate missing evaluation answers")
         base_model, tokenizer = load_base_model(base_source)
-        for system in ("base_no_card", "base_with_card"):
+        for system in BASELINE_SYSTEMS:
             if system not in missing_systems:
                 continue
             run_single_system(
@@ -1207,6 +1352,10 @@ def build_parser():
     compare_parser.add_argument("--multi_samples", type=int, default=20)
     compare_parser.add_argument("--max_new_tokens", type=int, default=256)
     compare_parser.add_argument("--seed", type=int, default=42)
+    compare_parser.add_argument(
+        "--reuse_baseline",
+        help="Reuse compatible base outputs from an evaluation directory",
+    )
     compare_parser.add_argument("--resume", action="store_true")
     compare_parser.add_argument("--skip_judge", action="store_true")
     return parser
