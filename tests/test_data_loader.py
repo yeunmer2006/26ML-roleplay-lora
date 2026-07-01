@@ -14,6 +14,7 @@ sys.path.insert(0, str(project_root))
 
 from scripts.data_loader import (
     encode_conversation,
+    encode_conversation_windows,
     load_local_dataset,
     format_conversation,
     tokenize_function,
@@ -269,6 +270,37 @@ class TestDataLoader:
         ]
 
         assert tokenizer.token_text(supervised) == "answer-oneanswer-two"
+
+    def test_window_encoding_spreads_turns_and_labels_target_only(self):
+        tokenizer = TrackingTokenizer()
+        example = {
+            "bot": {"name": "Role", "description": "CARD"},
+            "conversations": [
+                {"from": "human", "value": "q1"},
+                {"from": "gpt", "value": "a1"},
+                {"from": "human", "value": "q2"},
+                {"from": "gpt", "value": "a2"},
+                {"from": "human", "value": "q3"},
+                {"from": "gpt", "value": "a3"},
+            ],
+        }
+
+        windows = encode_conversation_windows(
+            example,
+            tokenizer,
+            max_length=1000,
+            max_windows=2,
+        )
+        supervised = [
+            tokenizer.token_text([
+                token
+                for token, label in zip(window["input_ids"], window["labels"])
+                if label != -100
+            ])
+            for window in windows
+        ]
+
+        assert supervised == ["a1", "a3"]
 
     def test_data_integrity(self):
         """测试数据完整性"""

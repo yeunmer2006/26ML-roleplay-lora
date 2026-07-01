@@ -3,3 +3,4 @@ train_1,512,old_left_truncation,0.0002,1,0.03,500,NVIDIA GeForce RTX 4080 SUPER,
 train_2,512,preserve_character_card,0.0002,1,0.03,500,NVIDIA GeForce RTX 5060,2.345,,35.9,1446808,snapshot_B
 train_3,1024,preserve_character_card,0.0002,1,0.03,500,NVIDIA vGPU-32GB,2.350,2.278,50.7,1909568,snapshot_C
 train_4,1024,preserve_character_card,0.0001,2,0.05,1000,NVIDIA GeForce RTX 4060 Laptop GPU,2.278,2.359,101.6,3903504,snapshot_A
+train_5,1024,preserve_character_card_clean_manifest,0.0001,2,0.05,942,NVIDIA vGPU-32GB,2.330,2.299,91.3,3354592,snapshot_C_manifest

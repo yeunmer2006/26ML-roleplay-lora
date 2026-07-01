@@ -24,7 +24,7 @@ Poster 使用 `80 cm × 180 cm` 竖版，两栏布局。两栏比三栏更适合
 - Qwen2.5-3B + 4-bit QLoRA。
 - 0.1193% 可训练参数，Adapter 约 14.8 MB。
 - assistant-only supervision 和角色卡保留截断。
-- 四个已完成实验的变量表。
+- 五个已完成评估的变量表。
 - 三路系统：Base no card、Base + card、LoRA + card。
 - 单轮五维和四轮五维 Judge。
 - 自动指标与 Bootstrap CI。
@@ -32,8 +32,8 @@ Poster 使用 `80 cm × 180 cm` 竖版，两栏布局。两栏比三栏更适合
 ### 右栏：Results + Takeaways
 
 - 单轮胜率最高 55.6%，但 CI 包含 0。
-- `train_4` 重复率最低 18.1%，仍高于基线 2.9%。
-- 四轮综合：LoRA 2.668 vs Base + card 3.153。
+- `train_5` 重复率最低 17.8%，仍高于基线 2.9%。
+- 四轮综合：`train_5` LoRA 2.780 vs Base + card 3.523。
 - 角色卡 Prompting 的收益大于当前 LoRA 的额外收益。
 - 下一步：统一数据、清洗重复、加强多轮数据和人工盲评。
 
@@ -46,8 +46,8 @@ Poster 使用 `80 cm × 180 cm` 竖版，两栏布局。两栏比三栏更适合
 | 0.1193% | 可训练参数占比 |
 | 14.8 MB | Adapter 权重约大小 |
 | 55.6% | 最佳单轮胜率 vs Base + card |
-| 18.1% | 最低 LoRA 重复率 |
-| 2.668 vs 3.153 | `train_4` 多轮综合：LoRA vs Base + card |
+| 17.8% | 最低 LoRA 重复率 |
+| 2.780 vs 3.523 | `train_5` 多轮综合：LoRA vs Base + card |
 | 101.6 min | RTX 4060 Laptop 上两轮 1024 上下文训练 |
 
 ## 4. Poster 使用图
@@ -55,11 +55,11 @@ Poster 使用 `80 cm × 180 cm` 竖版，两栏布局。两栏比三栏更适合
 1. **使用流程图**：Character Card -> system prompt -> chat template -> response。
 2. **训练 Pipeline**：数据格式 -> assistant-only -> QLoRA -> Adapter。
 3. **评估 Pipeline**：冻结测试集 -> 三路生成 -> Judge -> 配对分析。
-4. **实验趋势图**：横轴 `train_1` 至 `train_4`，显示单轮胜率和重复率。
+4. **实验趋势图**：横轴 `train_1` 至 `train_5`，显示单轮胜率和重复率。
 5. **train_4 单轮雷达图**：LoRA 与 Base + card 的五个维度。
 6. **train_4 多轮雷达图**：突出 LoRA 仅 memory 接近，其他维度落后。
 7. **角色卡贡献柱状图**：Base no card、Base + card、LoRA + card。
-8. **配对效应图**：四次实验的单轮 95% CI 和多轮综合差值。
+8. **配对效应图**：五次实验的单轮 95% CI 和多轮综合差值。
 
 图表数据优先读取 `experiment_comparison.csv`、`paired_comparison.csv` 和
 `train4_system_comparison.csv`。
@@ -78,13 +78,13 @@ The best variants reach a 55.6% win rate against `Base + card`, but paired
 
 ### Finding 3: Multi-turn quality remains weaker
 
-All four LoRA variants score below `Base + card` in the four-turn challenge,
+All five LoRA variants score below `Base + card` in the four-turn challenge,
 especially in identity, coherence, style, and immersion.
 
-### Finding 4: Lower LR reduces repetition
+### Finding 4: Repetition remains high
 
-`train_4` reduces LoRA repetition from 23.9% to 18.1% and improves
-Distinct-1/2, without improving multi-turn quality.
+`train_5` reaches the lowest LoRA repetition rate at 17.8%, still about
+6.2 times the `Base + card` rate of 2.9%.
 
 ## 6. `poster/poster.html` 已同步修正
 
@@ -99,8 +99,8 @@ Distinct-1/2, without improving multi-turn quality.
 5. 删除“1-2 epochs are not enough”的因果判断；现有证据更支持数据质量、重复模式和
    多轮监督不足等共同原因。
 6. 区分“原始源数据约 16k”和“当前 processed 快照 11,515”。
-7. 四次实验硬件分别写为 RTX 4080 SUPER、RTX 5060、
-   NVIDIA vGPU-32GB 和 RTX 4060 Laptop。
+7. 前四次实验硬件分别写为 RTX 4080 SUPER、RTX 5060、
+   NVIDIA vGPU-32GB 和 RTX 4060 Laptop；`train_5` 为 NVIDIA vGPU-32GB。
 8. 多轮结果表明确对应 `train_4`。
 
 ## 7. 最终视觉资产

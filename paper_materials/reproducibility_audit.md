@@ -2,7 +2,7 @@
 
 ## 1. 训练数据快照
 
-四次训练的 `run_manifest.json` 显示三个不同数据快照：
+五次训练的 `run_manifest.json` 显示多个数据快照或同名目录快照：
 
 | 实验 | Train SHA256 前 12 位 | Val 前 12 位 | Test 前 12 位 |
 |---|---|---|---|
@@ -10,16 +10,21 @@
 | `train_2` | `764eed769a8d` | `4364a38c02bc` | `1f4ac7ef732d` |
 | `train_3` | `1031de70542f` | `573194eced47` | `689f43b2c230` |
 | `train_4` | `1d74d16726c3` | `3b9d55727382` | `9ddba961031f` |
+| `train_5` | `1031de70542f` | `573194eced47` | `689f43b2c230` |
 
 当前 `processed/` 为 `train_3` 快照，包含 9,211/1,152/1,152 条。
+当前本地 `processed_clean/` 为 8,631/1,087/1,152 条，其 train/val hash
+分别为 `dc6e868e1a31` 和 `7e57a2f47fce`，与 `train_5` 清单不一致。
 
 因此：
 
 - `train_1` 与 `train_4` 使用同一数据快照；
 - `train_2` 使用独立快照；
-- `train_3` 使用当前磁盘快照；
+- `train_3` 使用当前 `processed/` 磁盘快照；
+- `train_5` 配置记录 `processed_clean`，但清单 hash 与当前 `processed/` 一致；
 - `train_2` 与 `train_3` 的差异不能视为纯截断或上下文单变量消融；
 - `train_3` 与 `train_4` 的差异也同时包含数据快照变化。
+- `train_5` 不能作为严格清洗数据单变量实验，只能作为一次已完成的清洗目录运行清单。
 
 ## 2. Split 泄漏审计
 
@@ -54,6 +59,7 @@
 | `train_2` | 70 | 70 | 20 |
 | `train_3` | 100 | 99 | 20 |
 | `train_4` | 100 | 99 | 20 |
+| `train_5` | 100 | 100 | 20 |
 
 `train_2` 的 manifest 仍记录目标 `single_samples=100`，但 summary 只包含 70。
 跨实验绘图必须使用有效样本数作为注释。
@@ -74,6 +80,7 @@
 | `train_2` | 3.11.9 | 2.11.0 / 12.8 | RTX 5060 |
 | `train_3` | 3.10.20 | 2.12.0 / 13.0 | NVIDIA vGPU-32GB |
 | `train_4` | 3.10.20 | 2.12.0 / 13.0 | RTX 4060 Laptop |
+| `train_5` | 3.10.20 | 2.12.0 / 13.0 | NVIDIA vGPU-32GB |
 
 训练质量指标可比较趋势，但训练速度不能直接用于硬件效率排名。
 
@@ -121,5 +128,5 @@
 - [ ] 跨实验表注明数据快照和硬件不统一。
 - [ ] 不把 PPL 降低等同于角色质量提升。
 - [ ] 不宣称已彻底消除角色泄漏。
-- [ ] `train_5` 至 `train_8` 只写为 future work。
+- [ ] `train_6` 只写为 future work，`train_5` 写为已完成但快照受限。
 - [ ] Poster 与论文使用同一版 `experiment_comparison.csv`。

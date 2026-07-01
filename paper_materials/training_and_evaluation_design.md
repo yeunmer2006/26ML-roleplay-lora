@@ -69,20 +69,35 @@ flowchart TD
 | `train_2` | 512 | 保留角色卡、消息级截断 | `2e-4` | 1 | 0.03 | 截断消融 |
 | `train_3` | 1024 | 保留角色卡、消息级截断 | `2e-4` | 1 | 0.03 | 上下文消融 |
 | `train_4` | 1024 | 同 `train_3` | `1e-4` | 2 | 0.05 | 优化强度与重复率 |
+| `train_5` | 1024 | 同 `train_4` | `1e-4` | 2 | 0.05 | 清洗数据运行清单 |
+| `train_6` | 1024 | assistant 窗口 | `1e-4` | 1 | 0.05 | 多轮训练改进 |
 
 `train_4` 每轮评估，按 `eval_loss` 加载最佳 checkpoint。第一轮验证 loss 为
 2.359，第二轮为 2.362，最终选择第一轮模型。
 
-### 1.4 后续实验设计
+`train_5` 每轮评估，第一轮验证 loss 为 2.315，第二轮为 2.299，最终选择第二轮
+模型。训练清单记录 `data_dir=processed_clean`，但 hash 与当前 `processed/`
+一致、与当前本地 `processed_clean/cleaning_manifest.json` 不一致，因此论文中
+应把它写成“清洗数据运行清单”，不能写成严格的清洗单变量因果实验。
 
-`train_5` 至 `train_8` 目前只有配置，没有结果：
+### 1.4 多轮窗口改进
+
+原训练流程每条原始对话只产生一个样本：保留 system 角色卡和最近能放入
+`max_seq_length` 的完整后缀，并监督其中所有 assistant token。该做法计算简单，
+但长对话的早期和中期回复经常被截掉，训练分布偏向最后一段上下文。
+
+新增 `sample_strategy: assistant_windows` 后，每条对话可生成最多 3 个 assistant
+turn 窗口，默认覆盖前期、中期和后期目标回复。每个窗口保留角色卡和目标回复前
+的最近上下文，但只监督该窗口末尾的目标 assistant 回复。这样模型在训练时会更多
+看到“带历史的下一轮回复”任务，预期比单个最近后缀更贴近多轮评估。
+
+### 1.5 后续实验设计
+
+`train_6` 目前只有配置，没有结果：
 
 | 实验 | 相对基线的单变量 |
 |---|---|
-| `train_5` | 使用 `processed_clean` |
-| `train_6` | 在 `train_5` 上将 LR 降到 `5e-5` |
-| `train_7` | 在 `train_5` 上将 LoRA 改为 `r=16, alpha=32` |
-| `train_8` | 在 `train_5` 上增加 gate/up/down FFN 投影层 |
+| `train_6` | 在 `train_5` 上改用 assistant turn 多窗口训练 |
 
 清洗规则过滤 assistant 回复中至少重复 3 次的句子，或 4-gram 重复率不低于
 0.35 且至少含 20 个 4-gram 的样本；test 集保持不变。

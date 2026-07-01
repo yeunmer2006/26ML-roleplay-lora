@@ -1,4 +1,4 @@
-# Target modules 消融：在 train_5 基线上增加 FFN 投影层
+# 第六次实验：在 train_5 基线上改用 assistant turn 多轮窗口训练
 model:
   name: "Qwen/Qwen2.5-3B-Instruct"
   max_seq_length: 1024
@@ -13,15 +13,12 @@ lora:
     - "k_proj"
     - "v_proj"
     - "o_proj"
-    - "gate_proj"
-    - "up_proj"
-    - "down_proj"
   lora_dropout: 0.05
   bias: "none"
 
 training:
-  output_dir: "output/experiments/train_8"
-  num_train_epochs: 2
+  output_dir: "output/experiments/train_6"
+  num_train_epochs: 1
   max_steps: -1
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
@@ -46,6 +43,8 @@ training:
 data:
   data_dir: "processed_clean"
   dataset_name: "KaraKaraWitch/PIPPA-ShareGPT-formatted"
-  max_train_samples: 4000
-  max_eval_samples: 200
+  max_train_samples: 2500
+  max_eval_samples: 120
+  sample_strategy: "assistant_windows"
+  max_windows_per_conversation: 3
   seed: 42

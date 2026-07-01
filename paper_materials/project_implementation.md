@@ -31,7 +31,7 @@ flowchart LR
 
 | 文件 | 作用 | 关键实现 |
 |---|---|---|
-| `scripts/data_loader.py` | 数据下载、清洗、划分和编码 | PIPPA 转 chat messages、去重、消息级截断、assistant-only labels |
+| `scripts/data_loader.py` | 数据下载、清洗、划分和编码 | PIPPA 转 chat messages、去重、消息级截断、多轮窗口、assistant-only labels |
 | `scripts/train.py` | QLoRA 训练入口 | NF4 量化、LoRA 注入、Trainer、benchmark、checkpoint、manifest |
 | `scripts/run_training.sh` | 统一训练命令 | Conda 激活、资源检查、冒烟测试、50-step 预检、断点续训 |
 | `scripts/prepare_training.sh` | 首次环境准备 | 固定依赖、检查 GPU、准备模型和数据 |
@@ -39,7 +39,7 @@ flowchart LR
 | `scripts/inference.py` | 角色卡推理演示 | Adapter 加载、角色卡格式化、交互和批量采样 |
 | `scripts/eval.py` | 三路对比评估 | 样本选择、生成、PPL、Judge、Bootstrap CI、断点续跑、基线复用 |
 | `scripts/clean_training_data.py` | 后续数据清洗 | 过滤重复句和高 4-gram 重复，保持 test 不变 |
-| `configs/experiments/*.yaml` | 实验配置 | `train_1` 至 `train_8` 的受控变量设计 |
+| `configs/experiments/*.yaml` | 实验配置 | `train_1` 至 `train_6` 的受控变量设计 |
 | `configs/character_cards/*.json` | 推理角色卡 | 姓名、人设、背景、外貌、说话风格和示例 |
 | `tests/` | 单元测试 | 数据、截断、配置、推理、资源管理、评估恢复与复用 |
 
@@ -85,6 +85,11 @@ Character name: <name>
 4. 至少保留最近的完整 user-assistant 后缀；
 5. 当角色卡和最后一组问答已超限时，将长度视为软预算。
 
+为改善多轮训练分布，新增的 `assistant_windows` 策略会把同一段对话拆成多个
+assistant turn 窗口。每个窗口以某个 assistant 回复为目标，只监督该目标回复，
+上下文则保留角色卡和目标前的最近完整消息后缀。默认策略仍是原来的
+`conversation_suffix`，因此历史实验可复现。
+
 ## 6. 已实现的评估能力
 
 评估同时运行：
@@ -109,14 +114,14 @@ Character name: <name>
 
 ### 模型与训练产出
 
-- 四个完整 LoRA Adapter：`output/experiments/train_1` 至 `train_4`。
+- 五个完整 LoRA Adapter：`output/experiments/train_1` 至 `train_5`。
 - 每轮 checkpoint、tokenizer、训练参数、运行清单和部分 console log。
 - `train_1/train_3/train_4` 的 50-step benchmark。
 
 ### 评估产出
 
-- 四轮三系统逐样本单轮和多轮生成。
-- 四份 `summary.json`、`report.md` 和 `manifest.json`。
+- 五轮三系统逐样本单轮和多轮生成。
+- 五份 `summary.json`、`report.md` 和 `manifest.json`。
 - 排除样本和 Judge 失败记录。
 - 统一核心指标表 `paper_materials/experiment_comparison.csv`。
 
