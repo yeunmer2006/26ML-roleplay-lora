@@ -114,14 +114,14 @@ assistant turn 窗口。每个窗口以某个 assistant 回复为目标，只监
 
 ### 模型与训练产出
 
-- 五个完整 LoRA Adapter：`output/experiments/train_1` 至 `train_5`。
+- 六个完整 LoRA Adapter：`output/experiments/train_1` 至 `train_6`。
 - 每轮 checkpoint、tokenizer、训练参数、运行清单和部分 console log。
 - `train_1/train_3/train_4` 的 50-step benchmark。
 
 ### 评估产出
 
-- 五轮三系统逐样本单轮和多轮生成。
-- 五份 `summary.json`、`report.md` 和 `manifest.json`。
+- 六轮三系统逐样本单轮和多轮生成。
+- 六份 `summary.json`、`report.md` 和 `manifest.json`。
 - 排除样本和 Judge 失败记录。
 - 统一核心指标表 `paper_materials/experiment_comparison.csv`。
 

@@ -80,6 +80,10 @@ flowchart TD
 一致、与当前本地 `processed_clean/cleaning_manifest.json` 不一致，因此论文中
 应把它写成“清洗数据运行清单”，不能写成严格的清洗单变量因果实验。
 
+`train_6` 使用 `assistant_windows`，1 epoch 产生 5198 个训练窗口和 650 个
+optimizer steps，验证 loss 为 2.258。它的评估结果显示 memory 维度小幅提高，
+但单轮胜率和多轮综合没有优于 `train_5`。
+
 ### 1.4 多轮窗口改进
 
 原训练流程每条原始对话只产生一个样本：保留 system 角色卡和最近能放入
@@ -93,11 +97,9 @@ turn 窗口，默认覆盖前期、中期和后期目标回复。每个窗口保
 
 ### 1.5 后续实验设计
 
-`train_6` 目前只有配置，没有结果：
-
 | 实验 | 相对基线的单变量 |
 |---|---|
-| `train_6` | 在 `train_5` 上改用 assistant turn 多窗口训练 |
+| `train_6` | 在 `train_5` 上改用 assistant turn 多窗口训练，已完成但未改善多轮综合 |
 
 清洗规则过滤 assistant 回复中至少重复 3 次的句子，或 4-gram 重复率不低于
 0.35 且至少含 20 个 4-gram 的样本；test 集保持不变。

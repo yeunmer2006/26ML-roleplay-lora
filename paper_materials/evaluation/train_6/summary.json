@@ -1,0 +1,777 @@
+{
+  "counts": {
+    "single_turn": 100,
+    "multi_turn": 20,
+    "excluded": 116,
+    "judge_failures": 0
+  },
+  "systems": {
+    "base_no_card": {
+      "automatic": {
+        "assistant_perplexity": {
+          "count": 100,
+          "mean": 872.6136298551012,
+          "median": 29.956865638148276,
+          "std": 5672.735755139352,
+          "ci95": [
+            157.53939210796395,
+            2107.886823928243
+          ]
+        },
+        "distinct_1": {
+          "count": 100,
+          "mean": 0.8099026889267223,
+          "median": 0.8315602836879432,
+          "std": 0.11817154923188684,
+          "ci95": [
+            0.786066005016883,
+            0.8341046744344424
+          ]
+        },
+        "distinct_2": {
+          "count": 100,
+          "mean": 0.9729677565904167,
+          "median": 1.0,
+          "std": 0.04594964292982388,
+          "ci95": [
+            0.9640222862279834,
+            0.9814154605036121
+          ]
+        },
+        "repetition_rate": {
+          "count": 100,
+          "mean": 0.027032243409583386,
+          "median": 0.0,
+          "std": 0.04594964292982388,
+          "ci95": [
+            0.018584539496387976,
+            0.03597771377201673
+          ]
+        },
+        "response_chars": {
+          "count": 100,
+          "mean": 391.41,
+          "median": 288.0,
+          "std": 294.73724213271726,
+          "ci95": [
+            337.034,
+            450.82225
+          ]
+        },
+        "latency_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "std": null,
+          "ci95": [
+            null,
+            null
+          ]
+        },
+        "tokens_per_second": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "std": null,
+          "ci95": [
+            null,
+            null
+          ]
+        },
+        "peak_gpu_memory_mb": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "std": null,
+          "ci95": [
+            null,
+            null
+          ]
+        },
+        "empty_or_refusal_rate": 0.09
+      },
+      "single_judge": {
+        "role_identity": {
+          "count": 100,
+          "mean": 1.73,
+          "median": 1.5,
+          "std": 0.8701149349367588,
+          "ci95": [
+            1.55,
+            1.91
+          ]
+        },
+        "style": {
+          "count": 100,
+          "mean": 2.03,
+          "median": 2.0,
+          "std": 0.899499861033897,
+          "ci95": [
+            1.86,
+            2.21025
+          ]
+        },
+        "relevance": {
+          "count": 100,
+          "mean": 2.34,
+          "median": 2.0,
+          "std": 1.1333137253205752,
+          "ci95": [
+            2.10975,
+            2.5702499999999997
+          ]
+        },
+        "naturalness": {
+          "count": 100,
+          "mean": 2.16,
+          "median": 2.0,
+          "std": 1.0170545708072896,
+          "ci95": [
+            1.98,
+            2.37
+          ]
+        },
+        "immersion": {
+          "count": 100,
+          "mean": 1.7,
+          "median": 1.0,
+          "std": 0.9327379053088815,
+          "ci95": [
+            1.51,
+            1.8802499999999998
+          ]
+        },
+        "weighted_total": {
+          "count": 100,
+          "mean": 1.9735,
+          "median": 1.8000000000000003,
+          "std": 0.8828775396395585,
+          "ci95": [
+            1.7904875000000002,
+            2.1475999999999997
+          ]
+        }
+      },
+      "multi_judge": {
+        "role_identity": {
+          "count": 20,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "memory": {
+          "count": 20,
+          "mean": 3.55,
+          "median": 3.5,
+          "std": 1.1608186766243898,
+          "ci95": [
+            3.05,
+            4.05
+          ]
+        },
+        "coherence": {
+          "count": 20,
+          "mean": 2.45,
+          "median": 2.0,
+          "std": 0.5894913061275798,
+          "ci95": [
+            2.2,
+            2.7
+          ]
+        },
+        "style": {
+          "count": 20,
+          "mean": 1.2,
+          "median": 1.0,
+          "std": 0.4,
+          "ci95": [
+            1.05,
+            1.4
+          ]
+        },
+        "immersion": {
+          "count": 20,
+          "mean": 1.0,
+          "median": 1.0,
+          "std": 0.0,
+          "ci95": [
+            1.0,
+            1.0
+          ]
+        },
+        "weighted_total": {
+          "count": 20,
+          "mean": 1.9575,
+          "median": 1.9249999999999998,
+          "std": 0.3956876925050866,
+          "ci95": [
+            1.7825,
+            2.13
+          ]
+        }
+      }
+    },
+    "base_with_card": {
+      "automatic": {
+        "assistant_perplexity": {
+          "count": 100,
+          "mean": 94.72472009658215,
+          "median": 26.946532069443037,
+          "std": 332.4397995267051,
+          "ci95": [
+            41.721871656820284,
+            170.21857119033334
+          ]
+        },
+        "distinct_1": {
+          "count": 100,
+          "mean": 0.7944233673554502,
+          "median": 0.8019607843137255,
+          "std": 0.12187308191179841,
+          "ci95": [
+            0.7715249419104526,
+            0.8180203061075106
+          ]
+        },
+        "distinct_2": {
+          "count": 100,
+          "mean": 0.9711373324670963,
+          "median": 1.0,
+          "std": 0.045659601773456876,
+          "ci95": [
+            0.961738180010295,
+            0.9794272835733667
+          ]
+        },
+        "repetition_rate": {
+          "count": 100,
+          "mean": 0.028862667532903744,
+          "median": 0.0,
+          "std": 0.04565960177345688,
+          "ci95": [
+            0.02057271642663329,
+            0.038261819989704966
+          ]
+        },
+        "response_chars": {
+          "count": 100,
+          "mean": 431.61,
+          "median": 317.5,
+          "std": 306.9187480425398,
+          "ci95": [
+            372.54775,
+            491.88125
+          ]
+        },
+        "latency_seconds": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "std": null,
+          "ci95": [
+            null,
+            null
+          ]
+        },
+        "tokens_per_second": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "std": null,
+          "ci95": [
+            null,
+            null
+          ]
+        },
+        "peak_gpu_memory_mb": {
+          "count": 0,
+          "mean": null,
+          "median": null,
+          "std": null,
+          "ci95": [
+            null,
+            null
+          ]
+        },
+        "empty_or_refusal_rate": 0.04
+      },
+      "single_judge": {
+        "role_identity": {
+          "count": 100,
+          "mean": 2.54,
+          "median": 3.0,
+          "std": 1.108332080199793,
+          "ci95": [
+            2.31975,
+            2.76
+          ]
+        },
+        "style": {
+          "count": 100,
+          "mean": 2.66,
+          "median": 3.0,
+          "std": 0.9820386957752734,
+          "ci95": [
+            2.47975,
+            2.85025
+          ]
+        },
+        "relevance": {
+          "count": 100,
+          "mean": 3.09,
+          "median": 3.0,
+          "std": 1.1233432244866215,
+          "ci95": [
+            2.86,
+            3.3
+          ]
+        },
+        "naturalness": {
+          "count": 100,
+          "mean": 2.74,
+          "median": 3.0,
+          "std": 1.0734989520255716,
+          "ci95": [
+            2.52,
+            2.94
+          ]
+        },
+        "immersion": {
+          "count": 100,
+          "mean": 2.43,
+          "median": 3.0,
+          "std": 1.1336225121265013,
+          "ci95": [
+            2.2,
+            2.65
+          ]
+        },
+        "weighted_total": {
+          "count": 100,
+          "mean": 2.693,
+          "median": 2.7,
+          "std": 1.0134105781962215,
+          "ci95": [
+            2.4864250000000006,
+            2.8840125
+          ]
+        }
+      },
+      "multi_judge": {
+        "role_identity": {
+          "count": 20,
+          "mean": 3.6,
+          "median": 4.0,
+          "std": 0.8602325267042626,
+          "ci95": [
+            3.2,
+            4.0
+          ]
+        },
+        "memory": {
+          "count": 20,
+          "mean": 2.95,
+          "median": 3.0,
+          "std": 1.023474474522936,
+          "ci95": [
+            2.4987500000000002,
+            3.4
+          ]
+        },
+        "coherence": {
+          "count": 20,
+          "mean": 3.5,
+          "median": 4.0,
+          "std": 0.7416198487095663,
+          "ci95": [
+            3.15,
+            3.8
+          ]
+        },
+        "style": {
+          "count": 20,
+          "mean": 3.4,
+          "median": 4.0,
+          "std": 0.8602325267042626,
+          "ci95": [
+            3.0,
+            3.8
+          ]
+        },
+        "immersion": {
+          "count": 20,
+          "mean": 3.15,
+          "median": 3.0,
+          "std": 0.9630680142129111,
+          "ci95": [
+            2.75,
+            3.5512499999999987
+          ]
+        },
+        "weighted_total": {
+          "count": 20,
+          "mean": 3.3199999999999994,
+          "median": 3.475,
+          "std": 0.6618912297349167,
+          "ci95": [
+            3.0175,
+            3.620125
+          ]
+        }
+      }
+    },
+    "lora_with_card": {
+      "automatic": {
+        "assistant_perplexity": {
+          "count": 100,
+          "mean": 11.096101036637517,
+          "median": 9.797260575616733,
+          "std": 6.963022857650574,
+          "ci95": [
+            9.851257122994513,
+            12.476326454580564
+          ]
+        },
+        "distinct_1": {
+          "count": 100,
+          "mean": 0.7367521011536318,
+          "median": 0.830952380952381,
+          "std": 0.2967997068572771,
+          "ci95": [
+            0.6772762088059835,
+            0.7916875592796606
+          ]
+        },
+        "distinct_2": {
+          "count": 100,
+          "mean": 0.8171090608980937,
+          "median": 0.978219696969697,
+          "std": 0.3008368717386173,
+          "ci95": [
+            0.758785329939805,
+            0.8710490545881084
+          ]
+        },
+        "repetition_rate": {
+          "count": 100,
+          "mean": 0.1728909391019064,
+          "median": 0.010416666666666666,
+          "std": 0.2899321337477365,
+          "ci95": [
+            0.1209453148702583,
+            0.23084044019892527
+          ]
+        },
+        "response_chars": {
+          "count": 100,
+          "mean": 277.39,
+          "median": 127.5,
+          "std": 326.22390761561303,
+          "ci95": [
+            221.04175,
+            340.48425
+          ]
+        },
+        "latency_seconds": {
+          "count": 100,
+          "mean": 11.584613410383463,
+          "median": 5.233785705640912,
+          "std": 13.088595212335584,
+          "ci95": [
+            9.22255096715875,
+            14.11861901786644
+          ]
+        },
+        "tokens_per_second": {
+          "count": 100,
+          "mean": 6.397751159646573,
+          "median": 6.4750206515925885,
+          "std": 0.30127177137860395,
+          "ci95": [
+            6.333932238681559,
+            6.454194696096224
+          ]
+        },
+        "peak_gpu_memory_mb": {
+          "count": 100,
+          "mean": 2123.4367138671873,
+          "median": 2107.37109375,
+          "std": 41.011189369407234,
+          "ci95": [
+            2115.608898925781,
+            2132.072138427734
+          ]
+        },
+        "empty_or_refusal_rate": 0.0
+      },
+      "single_judge": {
+        "role_identity": {
+          "count": 100,
+          "mean": 2.82,
+          "median": 3.0,
+          "std": 1.1779643458101776,
+          "ci95": [
+            2.6,
+            3.05
+          ]
+        },
+        "style": {
+          "count": 100,
+          "mean": 2.8,
+          "median": 3.0,
+          "std": 1.1916375287812986,
+          "ci95": [
+            2.57,
+            3.04
+          ]
+        },
+        "relevance": {
+          "count": 100,
+          "mean": 3.24,
+          "median": 3.0,
+          "std": 1.2009995836801943,
+          "ci95": [
+            3.01,
+            3.48
+          ]
+        },
+        "naturalness": {
+          "count": 100,
+          "mean": 2.98,
+          "median": 3.0,
+          "std": 1.272635061594643,
+          "ci95": [
+            2.75,
+            3.23
+          ]
+        },
+        "immersion": {
+          "count": 100,
+          "mean": 2.79,
+          "median": 3.0,
+          "std": 1.3363756956784272,
+          "ci95": [
+            2.54,
+            3.06025
+          ]
+        },
+        "weighted_total": {
+          "count": 100,
+          "mean": 2.9210000000000003,
+          "median": 2.975,
+          "std": 1.1289193948196656,
+          "ci95": [
+            2.710375,
+            3.151525000000001
+          ]
+        }
+      },
+      "multi_judge": {
+        "role_identity": {
+          "count": 20,
+          "mean": 2.55,
+          "median": 2.5,
+          "std": 0.9733961166965892,
+          "ci95": [
+            2.1,
+            3.0
+          ]
+        },
+        "memory": {
+          "count": 20,
+          "mean": 3.7,
+          "median": 4.0,
+          "std": 0.8426149773176358,
+          "ci95": [
+            3.35,
+            4.051249999999999
+          ]
+        },
+        "coherence": {
+          "count": 20,
+          "mean": 2.75,
+          "median": 3.0,
+          "std": 0.9937303457175896,
+          "ci95": [
+            2.3,
+            3.15
+          ]
+        },
+        "style": {
+          "count": 20,
+          "mean": 2.2,
+          "median": 2.0,
+          "std": 0.9273618495495702,
+          "ci95": [
+            1.8,
+            2.6
+          ]
+        },
+        "immersion": {
+          "count": 20,
+          "mean": 2.25,
+          "median": 2.0,
+          "std": 0.9937303457175896,
+          "ci95": [
+            1.85,
+            2.6512499999999988
+          ]
+        },
+        "weighted_total": {
+          "count": 20,
+          "mean": 2.7800000000000002,
+          "median": 2.7249999999999996,
+          "std": 0.753724087448451,
+          "ci95": [
+            2.4523749999999995,
+            3.1000625000000004
+          ]
+        }
+      }
+    }
+  },
+  "paired_differences": {
+    "lora_with_card_minus_base_with_card": {
+      "single_weighted_total": {
+        "count": 100,
+        "mean": 0.22799999999999998,
+        "median": 0.15000000000000024,
+        "std": 1.6005830187778454,
+        "ci95": [
+          -0.08506250000000004,
+          0.5300375000000002
+        ]
+      },
+      "multi_weighted_total": {
+        "count": 20,
+        "mean": -0.54,
+        "median": -0.5750000000000004,
+        "std": 1.0245242798489453,
+        "ci95": [
+          -0.9724999999999999,
+          -0.09493750000000004
+        ]
+      },
+      "assistant_perplexity": {
+        "count": 100,
+        "mean": -83.62861905994463,
+        "median": -14.283308817664567,
+        "std": 329.40525063974763,
+        "ci95": [
+          -158.97294089195117,
+          -31.255136952162005
+        ]
+      }
+    },
+    "base_with_card_minus_base_no_card": {
+      "single_weighted_total": {
+        "count": 100,
+        "mean": 0.7195,
+        "median": 0.6750000000000002,
+        "std": 1.1653946756356837,
+        "ci95": [
+          0.4864,
+          0.9440500000000001
+        ]
+      },
+      "multi_weighted_total": {
+        "count": 20,
+        "mean": 1.3624999999999998,
+        "median": 1.275,
+        "std": 0.781164995375497,
+        "ci95": [
+          1.0199375,
+          1.7251250000000002
+        ]
+      },
+      "assistant_perplexity": {
+        "count": 100,
+        "mean": -777.888909758519,
+        "median": -3.207817689121285,
+        "std": 5479.291378077582,
+        "ci95": [
+          -1960.243128527299,
+          -109.59533296027986
+        ]
+      }
+    },
+    "lora_with_card_minus_base_no_card": {
+      "single_weighted_total": {
+        "count": 100,
+        "mean": 0.9474999999999999,
+        "median": 1.1500000000000004,
+        "std": 1.4390339641579,
+        "ci95": [
+          0.6594875,
+          1.2440875000000002
+        ]
+      },
+      "multi_weighted_total": {
+        "count": 20,
+        "mean": 0.8225000000000001,
+        "median": 0.8,
+        "std": 0.8541772357069698,
+        "ci95": [
+          0.4574375,
+          1.1775
+        ]
+      },
+      "assistant_perplexity": {
+        "count": 100,
+        "mean": -861.5175288184638,
+        "median": -19.128078623879368,
+        "std": 5671.4757581312715,
+        "ci95": [
+          -2095.9156897597722,
+          -146.91836696366545
+        ]
+      }
+    }
+  },
+  "single_turn_win_rates": {
+    "lora_with_card_vs_base_with_card": {
+      "left_win_rate": 0.5,
+      "tie_rate": 0.0,
+      "right_win_rate": 0.5,
+      "count": 100
+    },
+    "base_with_card_vs_base_no_card": {
+      "left_win_rate": 0.65,
+      "tie_rate": 0.0,
+      "right_win_rate": 0.35,
+      "count": 100
+    },
+    "lora_with_card_vs_base_no_card": {
+      "left_win_rate": 0.71,
+      "tie_rate": 0.0,
+      "right_win_rate": 0.29,
+      "count": 100
+    }
+  },
+  "multi_turn_win_rates": {
+    "lora_with_card_vs_base_with_card": {
+      "left_win_rate": 0.2,
+      "tie_rate": 0.0,
+      "right_win_rate": 0.8,
+      "count": 20
+    },
+    "base_with_card_vs_base_no_card": {
+      "left_win_rate": 0.95,
+      "tie_rate": 0.0,
+      "right_win_rate": 0.05,
+      "count": 20
+    },
+    "lora_with_card_vs_base_no_card": {
+      "left_win_rate": 0.8,
+      "tie_rate": 0.0,
+      "right_win_rate": 0.2,
+      "count": 20
+    }
+  },
+  "judge_consistency_rate": 0.5714285714285714,
+  "judge_success_rate": 1.0
+}

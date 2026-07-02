@@ -28,20 +28,21 @@
 4. 同时使用 PPL、生成多样性、重复率、单轮 Judge、多轮 Judge、配对 CI 和
    顺序一致性分析角色扮演质量。
 5. 报告负面结果：低 PPL 不等于高角色质量，且当前 LoRA 多轮表现稳定退化。
-6. 提出 assistant turn 多窗口训练方案，用于后续直接针对多轮表现优化。
+6. 评估 assistant turn 多窗口训练方案，发现它只小幅改善 memory 维度，未改善多轮综合。
 
 ## 4. 摘要草稿
 
 本项目研究在有限计算资源下，参数高效微调能否提升小型语言模型的角色扮演
 能力。我们使用 PIPPA-ShareGPT 对 Qwen2.5-3B-Instruct 进行 4-bit QLoRA
-微调，并比较角色卡保留截断、上下文长度、学习率和训练轮数。为区分角色卡提示
-与微调的作用，评估同时比较无角色卡基座模型、带角色卡基座模型和带角色卡 LoRA
-模型。自动指标与 MiniMax-M3 匿名 Judge 共同覆盖单轮角色身份、风格、相关性、
-自然度、沉浸感，以及多轮记忆和连贯性。较优配置对带角色卡基线取得 55.6% 的
-单轮胜率，并将重复率从早期实验的 40.2% 降至 17.8%，但单轮配对差异的 95%
-置信区间仍包含零。五个 LoRA 模型的多轮综合分均低于带角色卡基线。结果表明，
-QLoRA 能有效学习角色对话分布并减少部分元话语，但角色卡提示本身已是强基线，
-数据质量、重复生成和长期角色一致性仍是主要限制。
+微调，并比较角色卡保留截断、上下文长度、学习率、训练轮数、数据清洗和
+assistant turn 多窗口训练。为区分角色卡提示与微调的作用，评估同时比较无角色卡
+基座模型、带角色卡基座模型和带角色卡 LoRA 模型。自动指标与 MiniMax-M3 匿名
+Judge 共同覆盖单轮角色身份、风格、相关性、自然度、沉浸感，以及多轮记忆和
+连贯性。较优配置对带角色卡基线取得 55.6% 的单轮胜率，并将重复率从早期实验的
+40.2% 降至 17.3%，但单轮配对差异的 95% 置信区间仍包含零。六个 LoRA 模型的
+多轮综合分均低于带角色卡基线。结果表明，QLoRA 能有效学习角色对话分布并减少
+部分元话语，但角色卡提示本身已是强基线，数据质量、重复生成和长期角色一致性
+仍是主要限制。
 
 ## 5. 推荐论文结构
 
@@ -68,7 +69,7 @@ QLoRA 能有效学习角色对话分布并减少部分元话语，但角色卡�
 
 ### 4. Experimental Setup
 
-- 五个已完成实验的参数表。
+- 六个已完成实验的参数表。
 - 三路评估系统。
 - 单轮 100、四轮 20 的目标设计及实际有效样本数。
 - 自动指标、Judge 维度和权重。
@@ -77,7 +78,7 @@ QLoRA 能有效学习角色对话分布并减少部分元话语，但角色卡�
 ### 5. Results
 
 - 训练效率和 Adapter 大小。
-- 五次评估的 LoRA 指标表。
+- 六次评估的 LoRA 指标表。
 - LoRA vs Base + card 配对差异表。
 - 单轮改善趋势、多轮退化、重复率分析。
 - 角色卡本身的贡献。
@@ -108,13 +109,13 @@ QLoRA 能有效学习角色对话分布并减少部分元话语，但角色卡�
 |---|---|---|
 | Figure 1 | 数据到 QLoRA 再到三路评估的总流程 | `training_and_evaluation_design.md` |
 | Figure 2 | LoRA 注入 q/k/v/o 投影示意 | 配置与 LoRA 公式 |
-| Figure 3 | 四实验单轮差值、CI 与胜率 | `paired_comparison.csv` |
-| Figure 4 | 四实验重复率与 Distinct-1 | `experiment_comparison.csv` |
+| Figure 3 | 六实验单轮差值、CI 与胜率 | `paired_comparison.csv` |
+| Figure 4 | 六实验重复率与 Distinct-1 | `experiment_comparison.csv` |
 | Figure 5 | `train_4` 三系统单轮五维雷达图 | `train4_system_comparison.csv` |
 | Figure 6 | `train_4` Base + card vs LoRA 多轮雷达图 | `train4_system_comparison.csv` |
-| Table 1 | 五个训练配置 | `training_and_evaluation_design.md` |
+| Table 1 | 六个训练配置 | `training_and_evaluation_design.md` |
 | Table 2 | 训练效率与硬件 | `training_comparison.csv` |
-| Table 3 | 五次核心 LoRA 指标 | `experiment_comparison.csv` |
+| Table 3 | 六次核心 LoRA 指标 | `experiment_comparison.csv` |
 | Table 4 | 配对差异与 95% CI | `results_and_findings.md` |
 
 ## 7. 写作措辞
