@@ -14,6 +14,7 @@ sys.path.insert(0, str(project_root))
 
 from scripts.data_loader import (
     encode_conversation,
+    encode_conversation_windows,
     load_local_dataset,
     format_conversation,
     tokenize_function,
@@ -184,6 +185,7 @@ class TestDataLoader:
         tokenizer = TrackingTokenizer()
         messages = [
             {"role": "system", "content": "CARD"},
+            {"role": "user", "content": "question"},
             {"role": "assistant", "content": "answer-one"},
             {"role": "assistant", "content": "answer-two"},
             {"role": "user", "content": "trailing-user"},
@@ -193,7 +195,7 @@ class TestDataLoader:
 
         assert result == messages[:-1]
 
-    def test_encode_supports_assistant_opening_without_system(self):
+    def test_encode_drops_orphan_assistant_opening(self):
         tokenizer = TrackingTokenizer()
         example = {
             "bot": {"name": "Unknown", "description": ""},
@@ -211,9 +213,9 @@ class TestDataLoader:
             token
             for token, label in zip(result["input_ids"], result["labels"])
             if label != -100
-        ]) == "openinganswer"
+        ]) == "answer"
 
-    def test_truncation_uses_soft_limit_for_card_and_last_answer(self):
+    def test_truncation_uses_soft_limit_for_card_and_last_pair(self):
         tokenizer = TrackingTokenizer()
         messages = [
             {"role": "system", "content": "VERY-LONG-CARD"},
@@ -223,8 +225,19 @@ class TestDataLoader:
 
         result = truncate_messages(messages, tokenizer, max_length=1)
 
-        assert result == [messages[0], messages[-1]]
+        assert result == messages
         assert len(tokenizer.apply_chat_template(result, tokenize=True)) > 1
+
+    def test_truncation_returns_no_orphan_assistant_without_user(self):
+        tokenizer = TrackingTokenizer()
+        messages = [
+            {"role": "system", "content": "CARD"},
+            {"role": "assistant", "content": "orphan"},
+        ]
+
+        result = truncate_messages(messages, tokenizer, max_length=1)
+
+        assert result == messages[:1]
 
     def test_encode_after_truncation_supervises_all_kept_assistants(self):
         tokenizer = TrackingTokenizer()
@@ -257,6 +270,37 @@ class TestDataLoader:
         ]
 
         assert tokenizer.token_text(supervised) == "answer-oneanswer-two"
+
+    def test_window_encoding_spreads_turns_and_labels_target_only(self):
+        tokenizer = TrackingTokenizer()
+        example = {
+            "bot": {"name": "Role", "description": "CARD"},
+            "conversations": [
+                {"from": "human", "value": "q1"},
+                {"from": "gpt", "value": "a1"},
+                {"from": "human", "value": "q2"},
+                {"from": "gpt", "value": "a2"},
+                {"from": "human", "value": "q3"},
+                {"from": "gpt", "value": "a3"},
+            ],
+        }
+
+        windows = encode_conversation_windows(
+            example,
+            tokenizer,
+            max_length=1000,
+            max_windows=2,
+        )
+        supervised = [
+            tokenizer.token_text([
+                token
+                for token, label in zip(window["input_ids"], window["labels"])
+                if label != -100
+            ])
+            for window in windows
+        ]
+
+        assert supervised == ["a1", "a3"]
 
     def test_data_integrity(self):
         """测试数据完整性"""

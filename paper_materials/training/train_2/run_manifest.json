@@ -1,0 +1,77 @@
+{
+  "mode": "train",
+  "created_at": "2026-06-13T11:30:47+0800",
+  "git_commit": "7d551c5558940caf1bd38a7fc3685c6688592a93",
+  "python": "3.11.9",
+  "torch": "2.11.0+cu128",
+  "cuda": "12.8",
+  "gpu": "NVIDIA GeForce RTX 5060",
+  "model_id": "Qwen/Qwen2.5-3B-Instruct",
+  "config": {
+    "model": {
+      "name": "Qwen/Qwen2.5-3B-Instruct",
+      "max_seq_length": 512,
+      "use_4bit_quantization": true,
+      "bnb_compute_dtype": "float16"
+    },
+    "lora": {
+      "r": 8,
+      "lora_alpha": 16,
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj"
+      ],
+      "lora_dropout": 0.05,
+      "bias": "none"
+    },
+    "training": {
+      "output_dir": "output/experiments/train_2",
+      "num_train_epochs": 1,
+      "max_steps": -1,
+      "per_device_train_batch_size": 1,
+      "per_device_eval_batch_size": 1,
+      "gradient_accumulation_steps": 8,
+      "gradient_checkpointing": true,
+      "learning_rate": 0.0002,
+      "weight_decay": 0.01,
+      "warmup_ratio": 0.03,
+      "lr_scheduler_type": "cosine",
+      "logging_steps": 10,
+      "save_steps": 250,
+      "save_strategy": "steps",
+      "eval_strategy": "epoch",
+      "save_total_limit": 2,
+      "fp16": true,
+      "bf16": false,
+      "optim": "paged_adamw_8bit",
+      "dataloader_num_workers": 2
+    },
+    "data": {
+      "data_dir": "processed",
+      "dataset_name": "KaraKaraWitch/PIPPA-ShareGPT-formatted",
+      "max_train_samples": 4000,
+      "max_eval_samples": 200,
+      "seed": 42
+    }
+  },
+  "data_sha256": {
+    "train.jsonl": "764eed769a8d950e188140b2031b6b555aafc00207de4bd5db55ebc7e45d48db",
+    "val.jsonl": "4364a38c02bcfe491ad9535f552e6c381d5214bab129e62981af4a27c75c56db",
+    "test.jsonl": "1f4ac7ef732df7a0a8ca2cfba515abb0c4925878063d5d808b255a24d5f83cc9"
+  },
+  "train_samples": 4000,
+  "eval_samples": 200,
+  "elapsed_seconds": 2155.5310000000172,
+  "train_metrics": {
+    "train_runtime": 2154.6086,
+    "train_samples_per_second": 1.856,
+    "train_steps_per_second": 0.232,
+    "total_flos": 2.411939032301568e+16,
+    "train_loss": 2.3454981117248535,
+    "epoch": 1.0,
+    "num_input_tokens_seen": 1446808
+  },
+  "final_model": "final_model"
+}

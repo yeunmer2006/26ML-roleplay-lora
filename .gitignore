@@ -31,6 +31,7 @@ ml_roleplay/
 
 # 数据和训练输出
 processed/
+processed_clean/
 data/
 output/
 runs/
@@ -69,3 +70,13 @@ Thumbs.db
 *.log
 tmp/
 *.tmp
+*.pdf
+
+# LaTeX artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc
+*.fls
+*.fdb_latexmk

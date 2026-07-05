@@ -1,0 +1,79 @@
+{
+  "mode": "train",
+  "created_at": "2026-06-13T20:20:28+0800",
+  "git_commit": "b29aea1969c50926a933b55ca963f61a096ab639",
+  "python": "3.10.20",
+  "torch": "2.12.0+cu130",
+  "cuda": "13.0",
+  "gpu": "NVIDIA vGPU-32GB",
+  "model_id": "Qwen/Qwen2.5-3B-Instruct",
+  "config": {
+    "model": {
+      "name": "Qwen/Qwen2.5-3B-Instruct",
+      "max_seq_length": 1024,
+      "use_4bit_quantization": true,
+      "bnb_compute_dtype": "float16"
+    },
+    "lora": {
+      "r": 8,
+      "lora_alpha": 16,
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj"
+      ],
+      "lora_dropout": 0.05,
+      "bias": "none"
+    },
+    "training": {
+      "output_dir": "output/experiments/train_5",
+      "num_train_epochs": 2,
+      "max_steps": -1,
+      "per_device_train_batch_size": 2,
+      "per_device_eval_batch_size": 2,
+      "gradient_accumulation_steps": 4,
+      "gradient_checkpointing": true,
+      "learning_rate": 0.0001,
+      "weight_decay": 0.01,
+      "warmup_ratio": 0.05,
+      "lr_scheduler_type": "cosine",
+      "logging_steps": 10,
+      "save_strategy": "epoch",
+      "eval_strategy": "epoch",
+      "save_total_limit": 2,
+      "load_best_model_at_end": true,
+      "metric_for_best_model": "eval_loss",
+      "greater_is_better": false,
+      "fp16": true,
+      "bf16": false,
+      "optim": "paged_adamw_8bit",
+      "dataloader_num_workers": 4
+    },
+    "data": {
+      "data_dir": "processed_clean",
+      "dataset_name": "KaraKaraWitch/PIPPA-ShareGPT-formatted",
+      "max_train_samples": 4000,
+      "max_eval_samples": 200,
+      "seed": 42
+    }
+  },
+  "data_sha256": {
+    "train.jsonl": "1031de70542fc4d7d591771c71ead41e1e8a947b7f56f2a2518628a52201a171",
+    "val.jsonl": "573194eced47c817cc26a067c9754cc4a5983ad45fefff39a90dbaa046966e40",
+    "test.jsonl": "689f43b2c2305ed894115c5a933114ee30607a4a3e9746b6ce0dc0791b62895a"
+  },
+  "train_samples": 3763,
+  "eval_samples": 187,
+  "elapsed_seconds": 5475.314428277314,
+  "train_metrics": {
+    "train_runtime": 5472.7602,
+    "train_samples_per_second": 1.375,
+    "train_steps_per_second": 0.172,
+    "total_flos": 5.592360135032832e+16,
+    "train_loss": 2.330047382670603,
+    "epoch": 2.0,
+    "num_input_tokens_seen": 3354592
+  },
+  "final_model": "final_model"
+}

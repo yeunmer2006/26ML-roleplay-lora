@@ -292,10 +292,9 @@ API Key 不直接写入脚本或命令参数。若密钥曾以明文形式保存
 3. **运行 `train_5` 数据质量消融**
    - 保持 `train_4` 的模型与训练参数不变，只替换为清洗数据。
    - 重点比较重复率、Distinct-1/2、多轮综合分和相对 `Base + card` 的配对差值。
-4. **按单变量顺序尝试候选配置**
-   - `train_6`：在 `train_5` 基础上只降低学习率。
-   - `train_7`：在 `train_5` 基础上只提高 LoRA rank。
-   - `train_8`：在 `train_5` 基础上只增加 FFN target modules。
+4. **运行多轮窗口训练**
+   - `train_6`：在 `train_5` 基础上改用 assistant turn 多窗口样本。
+   - 重点比较多轮身份、连贯性、风格和沉浸感是否优于 `train_5`。
 5. **完善最终评估**
    - 所有新实验复用相同测试样本和基座回答。
    - 增加组员盲评、Judge 交换顺序复测和更多多轮挑战。
@@ -306,9 +305,7 @@ API Key 不直接写入脚本或命令参数。若密钥曾以明文形式保存
 | 配置 | 唯一主要变量 | 依赖 | 状态 |
 |---|---|---|---|
 | `train_5_clean_data.yaml` | 使用清洗数据 | `processed_clean/` | 待生成数据 |
-| `train_6_clean_lr5e5.yaml` | 学习率 `1e-4 → 5e-5` | 完成 `train_5` | 候选 |
-| `train_7_clean_rank16.yaml` | LoRA `r/alpha: 8/16 → 16/32` | 完成 `train_5` | 候选 |
-| `train_8_clean_ffn.yaml` | LoRA 增加 FFN 投影层 | 完成 `train_5` | 候选 |
+| `train_6_clean_windows.yaml` | assistant turn 多窗口训练 | 完成 `train_5` | 下一轮 |
 
 这些配置位于 `configs/experiments/`。`processed_clean/` 尚未生成，因此不能直接
 开始 `train_5`。先运行清洗脚本：

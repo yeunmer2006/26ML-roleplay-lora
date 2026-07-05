@@ -32,7 +32,11 @@ from transformers import (
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.data_loader import encode_conversation, load_local_dataset
+from scripts.data_loader import (
+    encode_conversation,
+    encode_conversation_windows,
+    load_local_dataset,
+)
 
 
 class Config:
@@ -98,6 +102,12 @@ class Config:
         self.data_dir = data.get("data_dir", "processed")
         self.max_train_samples = data.get("max_train_samples", 4000)
         self.max_eval_samples = data.get("max_eval_samples", 200)
+        self.sample_strategy = data.get("sample_strategy", "conversation_suffix")
+        if self.sample_strategy not in {"conversation_suffix", "assistant_windows"}:
+            raise ValueError(f"未知 sample_strategy: {self.sample_strategy}")
+        self.max_windows_per_conversation = int(
+            data.get("max_windows_per_conversation", 3)
+        )
         # best-model 选择相关的三个字段：让 yaml 的设置真正生效
         self.load_best_model_at_end = bool(training.get("load_best_model_at_end", False))
         self.metric_for_best_model = training.get("metric_for_best_model", None)
@@ -203,24 +213,61 @@ def prepare_dataset(config, tokenizer, data_dir=None, train_limit=None, eval_lim
         config.seed,
     )
 
-    def encode(example):
-        return encode_conversation(example, tokenizer, config.max_seq_length)
+    if config.sample_strategy == "assistant_windows":
+        train_dataset = _encode_windows(train_dataset, tokenizer, config, "训练集")
+        eval_dataset = _encode_windows(eval_dataset, tokenizer, config, "验证集")
+    else:
+        def encode(example):
+            return encode_conversation(example, tokenizer, config.max_seq_length)
 
-    train_dataset = train_dataset.map(
-        encode,
-        remove_columns=train_dataset.column_names,
-        desc="编码训练集",
-    ).filter(lambda example: any(label != -100 for label in example["labels"]))
-    eval_dataset = eval_dataset.map(
-        encode,
-        remove_columns=eval_dataset.column_names,
-        desc="编码验证集",
-    ).filter(lambda example: any(label != -100 for label in example["labels"]))
+        train_dataset = train_dataset.map(
+            encode,
+            remove_columns=train_dataset.column_names,
+            desc="编码训练集",
+        ).filter(lambda example: any(label != -100 for label in example["labels"]))
+        eval_dataset = eval_dataset.map(
+            encode,
+            remove_columns=eval_dataset.column_names,
+            desc="编码验证集",
+        ).filter(lambda example: any(label != -100 for label in example["labels"]))
 
     if len(train_dataset) == 0 or len(eval_dataset) == 0:
         raise RuntimeError("编码后训练集或验证集为空，请检查数据和聊天模板")
-    print(f"有效训练/验证样本: {len(train_dataset)}/{len(eval_dataset)}")
+    print(
+        f"有效训练/验证样本: {len(train_dataset)}/{len(eval_dataset)} "
+        f"({config.sample_strategy})"
+    )
     return train_dataset, eval_dataset
+
+
+def _encode_windows(dataset, tokenizer, config, split_name):
+    encoded = []
+    for example in dataset:
+        encoded.extend(
+            encode_conversation_windows(
+                example,
+                tokenizer,
+                config.max_seq_length,
+                config.max_windows_per_conversation,
+            )
+        )
+    encoded = [
+        example
+        for example in encoded
+        if any(label != -100 for label in example["labels"])
+    ]
+    print(
+        f"{split_name}窗口编码: {len(dataset)} -> {len(encoded)} "
+        f"(max_windows={config.max_windows_per_conversation})"
+    )
+    if not encoded:
+        return Dataset.from_dict({
+            "input_ids": [],
+            "attention_mask": [],
+            "labels": [],
+            "length": [],
+        })
+    return Dataset.from_list(encoded)
 
 
 def create_trainer(model, tokenizer, train_dataset, eval_dataset, config, output_dir,

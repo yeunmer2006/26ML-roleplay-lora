@@ -210,10 +210,10 @@ def _template_ids(tokenizer, messages, add_generation_prompt=False):
 
 
 def truncate_messages(messages, tokenizer, max_length):
-    """保留 system 和最近消息，按聊天模板的实际 token 长度裁剪。
+    """保留 system 和最近的完整 user-assistant 后缀。
 
-    max_length 是软预算。如果完整 system 与最后一条 assistant 消息已经超出
-    预算，仍完整保留二者，避免角色卡或监督回复被 token 级截断。
+    max_length 是软预算。如果 system 与最后一组 user-assistant 消息已经超出
+    预算，仍完整保留该组，避免产生缺少用户输入的孤立 assistant 回复。
     """
     if not messages:
         return []
@@ -232,20 +232,23 @@ def truncate_messages(messages, tokenizer, max_length):
         return system
 
     dialogue = dialogue[:last_assistant + 1]
-    for start in range(len(dialogue)):
+    user_starts = [
+        index
+        for index, message in enumerate(dialogue)
+        if message["role"] == "user"
+    ]
+    for start in user_starts:
         candidate = system + dialogue[start:]
         if len(_template_ids(tokenizer, candidate)) <= max_length:
             return candidate
 
-    return system + [dialogue[-1]]
+    if user_starts:
+        return system + dialogue[user_starts[-1]:]
+    return system
 
 
-def encode_conversation(example, tokenizer, max_length: int = 512):
-    """编码对话，并只对 assistant token 计算训练损失。
-
-    对超长样本保留完整角色卡，并按消息边界删除最旧对话。
-    """
-    messages = truncate_messages(build_messages(example), tokenizer, max_length)
+def encode_messages(messages, tokenizer, target_assistant_index=None):
+    """编码已裁剪消息，并只监督 assistant 回复。"""
     if not messages:
         return {"input_ids": [], "attention_mask": [], "labels": [], "length": 0}
 
@@ -254,6 +257,8 @@ def encode_conversation(example, tokenizer, max_length: int = 512):
 
     for index, message in enumerate(messages):
         if message["role"] != "assistant":
+            continue
+        if target_assistant_index is not None and index != target_assistant_index:
             continue
         if index == 0:
             end = len(_template_ids(tokenizer, messages[:1]))
@@ -278,6 +283,77 @@ def encode_conversation(example, tokenizer, max_length: int = 512):
         "labels": labels,
         "length": len(input_ids),
     }
+
+
+def encode_conversation(example, tokenizer, max_length: int = 512):
+    """编码对话，并只对 assistant token 计算训练损失。
+
+    对超长样本保留完整角色卡，并按消息边界删除最旧对话。
+    """
+    messages = truncate_messages(build_messages(example), tokenizer, max_length)
+    return encode_messages(messages, tokenizer)
+
+
+def _assistant_indices_after_user(messages):
+    system_len = 1 if messages and messages[0]["role"] == "system" else 0
+    seen_user = False
+    indices = []
+    for index, message in enumerate(messages[system_len:], start=system_len):
+        if message["role"] == "user":
+            seen_user = True
+        elif message["role"] == "assistant" and seen_user:
+            indices.append(index)
+    return indices
+
+
+def _spread_indices(indices, limit):
+    if limit is None or int(limit) <= 0 or len(indices) <= int(limit):
+        return indices
+    if int(limit) == 1:
+        return [indices[-1]]
+    last = len(indices) - 1
+    positions = sorted({
+        round(step * last / (int(limit) - 1))
+        for step in range(int(limit))
+    })
+    return [indices[position] for position in positions]
+
+
+def encode_conversation_windows(
+    example,
+    tokenizer,
+    max_length: int = 512,
+    max_windows: int = 3,
+):
+    """为多轮训练生成多个 assistant-turn 窗口。
+
+    每个窗口保留角色卡和目标回复前的最近上下文，只监督该窗口末尾的目标回复。
+    这样同一段多轮对话的前期、中期和后期回复都能进入训练集。
+    """
+    messages = build_messages(example)
+    target_indices = _spread_indices(_assistant_indices_after_user(messages), max_windows)
+    encoded = []
+    for target_index in target_indices:
+        target_message = messages[target_index]
+        window = truncate_messages(messages[:target_index + 1], tokenizer, max_length)
+        target_position = next(
+            (
+                index
+                for index, message in enumerate(window)
+                if message is target_message
+            ),
+            None,
+        )
+        if target_position is None:
+            continue
+        encoded.append(
+            encode_messages(
+                window,
+                tokenizer,
+                target_assistant_index=target_position,
+            )
+        )
+    return encoded
 
 
 def tokenize_function(examples, tokenizer, max_length: int = 512):

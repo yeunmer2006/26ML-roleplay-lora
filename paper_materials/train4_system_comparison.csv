@@ -1,0 +1,4 @@
+system,ppl,distinct_1,distinct_2,repetition,refusal,single_identity,single_style,single_relevance,single_naturalness,single_immersion,single_weighted,multi_identity,multi_memory,multi_coherence,multi_style,multi_immersion,multi_weighted
+base_no_card,872.614,0.810,0.973,0.027,0.090,1.768,1.859,2.323,2.091,1.697,1.938,1.000,3.250,2.450,1.200,1.000,1.882
+base_with_card,94.725,0.794,0.971,0.029,0.040,2.535,2.667,3.152,2.737,2.414,2.703,3.400,2.900,3.350,3.150,2.900,3.153
+lora_with_card,10.343,0.718,0.809,0.181,0.010,2.909,2.778,3.293,2.889,2.727,2.938,2.850,2.950,2.600,2.300,2.350,2.668
