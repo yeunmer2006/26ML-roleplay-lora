@@ -71,3 +71,12 @@ Thumbs.db
 tmp/
 *.tmp
 *.pdf
+
+# LaTeX artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
