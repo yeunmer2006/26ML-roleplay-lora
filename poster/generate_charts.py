@@ -88,7 +88,7 @@ def generate_experiment_trends(rows):
 
     out = [
         text(55, 55, "Experiment Trend: Win Rate vs. Repetition", "title"),
-        text(55, 88, "Single-turn LoRA results across train_1 to train_4", "subtitle"),
+        text(55, 88, f"Single-turn LoRA results across {rows[0]['experiment']} to {rows[-1]['experiment']}", "subtitle"),
     ]
     for tick in range(0, max_y + 1, 10):
         y = top + plot_h - tick / max_y * plot_h
@@ -361,7 +361,7 @@ def generate_paired_effects(rows):
             text(380, 717, "Single-turn mean and 95% CI", "label"),
             f'  <rect x="705" y="702" width="16" height="16" fill="{RED}"/>',
             text(735, 717, "Four-turn mean", "label"),
-            text(55, 745, "All single-turn intervals cross zero; all four-turn means are negative.", "note"),
+            text(55, 745, f"All single-turn intervals cross zero; all {len(rows)} four-turn means are negative.", "note"),
         ]
     )
     write_svg("paired-effects.svg", width, height, "Paired effects", out)

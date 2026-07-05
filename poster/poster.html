@@ -579,11 +579,11 @@
       </section>
 
       <section class="section">
-        <h2 class="section-title">Four LoRA Experiments</h2>
+        <h2 class="section-title">Six LoRA Experiments</h2>
         <div class="result-split">
           <div>
-            <div class="table-label">Valid Judge counts: 100 / 70 / 99 / 99.</div>
-            <table aria-label="Four LoRA experiment results">
+            <div class="table-label">Valid Judge counts: 100 / 70 / 99 / 99 / 100 / 100.</div>
+            <table aria-label="Six LoRA experiment results">
               <thead>
                 <tr>
                   <th>Run</th><th>PPL ↓</th><th>Identity ↑</th><th>Weighted ↑</th>
@@ -594,21 +594,23 @@
                 <tr><td>train_1</td><td>10.404</td><td>2.770</td><td>2.718</td><td>44.0%</td><td>25.6%</td></tr>
                 <tr><td>train_2</td><td class="good">9.441</td><td>2.657</td><td>2.643</td><td>48.6%</td><td>40.2%</td></tr>
                 <tr><td>train_3</td><td>10.446</td><td class="good">2.970</td><td>2.935</td><td class="good">55.6%</td><td>23.9%</td></tr>
-                <tr><td>train_4</td><td>10.343</td><td>2.909</td><td class="good">2.938</td><td class="good">55.6%</td><td class="best">18.1%</td></tr>
+                <tr><td>train_4</td><td>10.343</td><td>2.909</td><td>2.938</td><td class="good">55.6%</td><td>18.1%</td></tr>
+                <tr><td>train_5</td><td>10.760</td><td>2.950</td><td class="good">2.989</td><td class="good">55.0%</td><td>17.8%</td></tr>
+                <tr><td>train_6</td><td>11.096</td><td>2.820</td><td>2.921</td><td>50.0%</td><td class="best">17.3%</td></tr>
               </tbody>
             </table>
           </div>
           <figure class="figure-medium">
-            <img src="experiment-trends.svg" alt="Win-rate and repetition trends across four experiments">
+            <img src="experiment-trends.svg" alt="Win-rate and repetition trends across six experiments">
             <figcaption>
-              <strong>Figure 4. Experiment trend across four LoRA runs.</strong>
+              <strong>Figure 4. Experiment trend across six LoRA runs.</strong>
               The green line is the single-turn pairwise win rate of LoRA + card against
               Base + card, so values above 50% favor LoRA. The red line is the LoRA
               repetition rate, where lower values are preferable. The 1024-token runs
-              train_3 and train_4 reach 55.6% wins, compared with 44.0% and 48.6% for the
-              512-token runs. Lowering the learning rate in train_4 preserves the win rate
-              while reducing repetition from 23.9% to 18.1%, although this remains well
-              above the 2.9% prompt-baseline rate.
+              train_3 and train_4 reach the best 55.6% win rate, while train_5 remains
+              close at 55.0%. Assistant-window training in train_6 gives the lowest LoRA
+              repetition rate, 17.3%, but this still remains well above the 2.9%
+              prompt-baseline rate.
             </figcaption>
           </figure>
         </div>
@@ -643,9 +645,9 @@
             The vertical zero line represents no difference between LoRA + card and
             Base + card. Green circles show the mean single-turn weighted-score difference,
             and the horizontal bars show bootstrap 95% confidence intervals. Although
-            train_3 and train_4 have positive means and 55.6% win rates, every interval
-            crosses zero, so a stable single-turn advantage is not established. Red
-            squares show the four-turn mean difference; all four are negative, indicating
+            train_3 through train_6 have non-negative means, every interval crosses zero,
+            so a stable single-turn advantage is not established. Red squares show the
+            four-turn mean difference; all six are negative, indicating
             consistent multi-turn degradation relative to the prompt baseline.
           </figcaption>
         </figure>
@@ -719,7 +721,7 @@
       <section class="section">
         <h2 class="section-title">Discussion</h2>
         <p>
-          <strong>Training changed the distribution.</strong> LoRA PPL is 9.4–10.4,
+          <strong>Training changed the distribution.</strong> LoRA PPL is 9.4–11.1,
           far below the prompt baseline, showing that the adapter learned the target
           response distribution. PPL alone is insufficient: train_2 combines the lowest
           PPL with the highest repetition and weakest multi-turn score.
@@ -730,12 +732,12 @@
           single-turn gain is smaller and its confidence interval includes zero.
         </p>
         <p>
-          <strong>Repetition remains the clearest failure mode.</strong> train_4 lowers
-          LoRA repetition to 18.1%, but this is still about <strong>6.3×</strong> the
+          <strong>Repetition remains the clearest failure mode.</strong> train_6 lowers
+          LoRA repetition to 17.3%, but this is still about <strong>6.0×</strong> the
           Base + card rate of 2.9%.
         </p>
         <p>
-          <strong>Multi-turn quality remains weaker.</strong> All four LoRA variants
+          <strong>Multi-turn quality remains weaker.</strong> All six LoRA variants
           score below Base + card in the four-turn comparison. The evidence points to
           data quality, repeated patterns, and insufficient multi-turn supervision as
           joint concerns rather than proving a single cause.
@@ -749,7 +751,7 @@
           <li>The best variants reach a 55.6% single-turn win rate vs Base + card.</li>
           <li>All single-turn paired 95% intervals include zero, so improvement is a trend.</li>
           <li>Current LoRA variants remain below the prompt baseline in four-turn quality.</li>
-          <li>Lower learning rate reduces repetition but does not repair multi-turn degradation.</li>
+          <li>Later data and windowing changes reduce repetition but do not repair multi-turn degradation.</li>
         </ul>
         <p class="highlight">
           Efficient adaptation is feasible, but stronger data quality and multi-turn
@@ -774,9 +776,9 @@
     <div>
       <div class="footer-title">References</div>
       <ul>
-        <li>Hu et al. (2022). LoRA: Low-Rank Adaptation of Large Language Models.</li>
-        <li>Qwen Team (2024). Qwen2.5 Technical Report.</li>
-        <li>KaraKaraWitch/PIPPA-ShareGPT-formatted; Hugging Face PEFT.</li>
+        <li>Hu et al. (2022). LoRA; Dettmers et al. (2023). QLoRA.</li>
+        <li>Qwen Team (2024). Qwen2.5 Technical Report; Gosling et al. (2023). PIPPA.</li>
+        <li>KaraKaraWitch/PIPPA-ShareGPT-formatted; Zheng et al. (2023). LLM-as-Judge.</li>
       </ul>
     </div>
     <div>
@@ -787,9 +789,9 @@
     </div>
     <div>
       <div class="footer-title">Evaluation Notes</div>
-      <p>Single-turn valid Judge counts: 100 / 70 / 99 / 99.</p>
+      <p>Single-turn valid Judge counts: 100 / 70 / 99 / 99 / 100 / 100.</p>
       <p>Four-turn evaluation: 20 characters per experiment.</p>
-      <p>Poster data snapshot: 13 June 2026.</p>
+      <p>Poster data snapshot: 1 July 2026.</p>
     </div>
   </footer>
 </body>
